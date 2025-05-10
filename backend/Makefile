@@ -34,6 +34,10 @@ migrate/down:
 migrate/down1:
 	@migrate -path ${MIGRATION_PATH} -database "$(DB_URL)" -verbose down 1
 
+# Generate Go code using sqlc
+sqlc:
+	@sqlc generate
+
 all: build test
 
 # Build the application
