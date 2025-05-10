@@ -1,11 +1,31 @@
 include .env
+MIGRATION_PATH=cmd/migration
+DB_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}?sslmode=disable
 
 # Create container using postgres 16 image
 postgres:
-	@docker run --name postgres -p 5432:5432 -e POSTGRES_USER=${DB_USERNAME} -e POSTGRES_PASSWORD=${DB_PASSWORD} -d postgres:16-alpine
+	@docker run --name postgres -p ${DB_PORT}:5432 -e POSTGRES_USER=${DB_USERNAME} -e POSTGRES_PASSWORD=${DB_PASSWORD} -d postgres:16-alpine
 
-create-db:
+db/create:
 	@docker exec -it postgres createdb --username=${DB_USERNAME} --owner=${DB_USERNAME} ${DB_DATABASE}
+
+db/drop:
+	@docker exec -it postgres dropdb ${DB_DATABASE}
+
+migrate/new:
+	@migrate create -ext sql -dir "${MIGRATION_PATH}" -seq ${name}
+
+migrate/up:
+	@migrate -path ${MIGRATION_PATH} -database "$(DB_URL)" -verbose up
+
+migrate/up1:
+	@migrate -path ${MIGRATION_PATH} -database "$(DB_URL)" -verbose up 1
+
+migrate/down:
+	@migrate -path ${MIGRATION_PATH} -database "$(DB_URL)" -verbose down
+
+migrate/down1:
+	@migrate -path ${MIGRATION_PATH} -database "$(DB_URL)" -verbose down 1
 
 all: build test
 
@@ -19,7 +39,7 @@ run:
 	@go run cmd/api/main.go
 
 # Create DB container
-docker-run:
+docker/run:
 	@if docker compose up --build 2>/dev/null; then \
 		: ; \
 	else \
@@ -28,7 +48,7 @@ docker-run:
 	fi
 
 # Shutdown DB container
-docker-down:
+docker/down:
 	@if docker compose down 2>/dev/null; then \
 		: ; \
 	else \
@@ -68,4 +88,4 @@ watch:
             fi; \
         fi
 
-.PHONY: postgres create-db all build run test clean watch docker-run docker-down itest
+.PHONY: postgres db/create db/drop migrate/new migrate/up migrate/up1 migrate/down migrate/down1 all build run test clean watch docker-run docker-down itest
