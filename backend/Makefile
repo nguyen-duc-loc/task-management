@@ -6,24 +6,31 @@ DB_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DAT
 postgres:
 	@docker run --name postgres -p ${DB_PORT}:5432 -e POSTGRES_USER=${DB_USERNAME} -e POSTGRES_PASSWORD=${DB_PASSWORD} -d postgres:16-alpine
 
+# Create database
 db/create:
 	@docker exec -it postgres createdb --username=${DB_USERNAME} --owner=${DB_USERNAME} ${DB_DATABASE}
 
+# Drop database
 db/drop:
 	@docker exec -it postgres dropdb ${DB_DATABASE}
 
+# Create a new migration
 migrate/new:
 	@migrate create -ext sql -dir "${MIGRATION_PATH}" -seq ${name}
 
+# Up all migrations
 migrate/up:
 	@migrate -path ${MIGRATION_PATH} -database "$(DB_URL)" -verbose up
 
+# Up the latest migration
 migrate/up1:
 	@migrate -path ${MIGRATION_PATH} -database "$(DB_URL)" -verbose up 1
 
+# Down all migrations
 migrate/down:
 	@migrate -path ${MIGRATION_PATH} -database "$(DB_URL)" -verbose down
 
+# Down the latest migration
 migrate/down1:
 	@migrate -path ${MIGRATION_PATH} -database "$(DB_URL)" -verbose down 1
 
