@@ -67,16 +67,16 @@ func TestMain(m *testing.M) {
 }
 
 func TestNew(t *testing.T) {
-	srv := New()
-	if srv == nil {
+	dbInstance := New()
+	if dbInstance == nil {
 		t.Fatal("New() returned nil")
 	}
 }
 
 func TestHealth(t *testing.T) {
-	srv := New()
+	dbInstance := New()
 
-	stats := srv.Health()
+	stats := dbInstance.Health()
 
 	if stats["status"] != "up" {
 		t.Fatalf("expected status to be up, got %s", stats["status"])
@@ -92,9 +92,15 @@ func TestHealth(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	srv := New()
+	dbInstance := New()
 
-	if srv.Close() != nil {
-		t.Fatalf("expected Close() to return nil")
+	dbInstance.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	err := dbInstance.connPool.Ping(ctx)
+	if nil == err {
+		t.Fatalf("expected status to be down")
 	}
 }

@@ -2,30 +2,77 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/nguyen-duc-loc/task-management/backend/internal/store"
 )
 
-// Service represents a service that interacts with a database.
-type Service interface {
-	// Health returns a map of health status information.
-	// The keys and values in the map are service-specific.
-	Health() map[string]string
-
-	// Close terminates the database connection.
-	// It returns an error if the connection cannot be closed.
-	Close() error
+type Database struct {
+	connPool *pgxpool.Pool
+	storage  store.Storage
 }
 
-type service struct {
-	db *sql.DB
+func (d *Database) Health() map[string]string {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	stats := make(map[string]string)
+
+	err := d.connPool.Ping(ctx)
+	if err != nil {
+		stats["status"] = "down"
+		stats["error"] = fmt.Sprintf("db down: %v", err)
+		log.Fatalf("db down: %v", err)
+		return stats
+	}
+
+	stats["status"] = "up"
+	stats["message"] = "It's healthy"
+
+	poolStats := d.connPool.Stat()
+	stats["acquire_count"] = strconv.FormatInt(poolStats.AcquireCount(), 10)
+	stats["acquired_conns"] = strconv.FormatInt(int64(poolStats.AcquiredConns()), 10)
+	stats["acquire_duration"] = poolStats.AcquireDuration().String()
+	stats["canceled_acquire_count"] = strconv.FormatInt(poolStats.CanceledAcquireCount(), 10)
+	stats["constructing_conns"] = strconv.FormatInt(int64(poolStats.ConstructingConns()), 10)
+	stats["empty_acquire_count"] = strconv.FormatInt(poolStats.EmptyAcquireCount(), 10)
+	stats["idle_conns"] = strconv.FormatInt(int64(poolStats.IdleConns()), 10)
+	stats["max_conns"] = strconv.FormatInt(int64(poolStats.MaxConns()), 10)
+	stats["total_conns"] = strconv.FormatInt(int64(poolStats.TotalConns()), 10)
+
+	if poolStats.EmptyAcquireCount() > 1000 {
+		stats["message"] = "Connection pool has been exhausted over 1000 times; consider increasing max connections or reviewing query efficiency."
+	}
+
+	if poolStats.AcquireDuration() > 500*time.Millisecond {
+		stats["message"] = "Average connection acquire time is high; potential connection contention or slow database responses."
+	}
+
+	if poolStats.AcquiredConns() > poolStats.MaxConns()*80/100 {
+		stats["message"] = "Over 80% of the pool connections are currently in use; approaching saturation."
+	}
+
+	if poolStats.ConstructingConns() > 5 {
+		stats["message"] = "New connections are being constructed frequently; connection churn may be high."
+	}
+
+	if poolStats.IdleConns() == 0 && poolStats.AcquiredConns() > 0 {
+		stats["message"] = "No idle connections available while some are in use; pool might be undersized."
+	}
+
+	return stats
+}
+
+func (d *Database) Close() {
+	log.Printf("Disconnected from database: %s", d.connPool.Config().ConnConfig.Database)
+	d.connPool.Close()
 }
 
 var (
@@ -35,84 +82,22 @@ var (
 	port       = os.Getenv("DB_PORT")
 	host       = os.Getenv("DB_HOST")
 	schema     = os.Getenv("DB_SCHEMA")
-	dbInstance *service
+	dbInstance *Database
 )
 
-func New() Service {
-	// Reuse Connection
+func New() *Database {
 	if dbInstance != nil {
 		return dbInstance
 	}
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
-	db, err := sql.Open("pgx", connStr)
+	connPool, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	dbInstance = &service{
-		db: db,
+	return &Database{
+		connPool: connPool,
+		storage:  store.NewStorage(connPool),
 	}
-
-	return dbInstance
-}
-
-// Health checks the health of the database connection by pinging the database.
-// It returns a map with keys indicating various health statistics.
-func (s *service) Health() map[string]string {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	stats := make(map[string]string)
-
-	// Ping the database
-	err := s.db.PingContext(ctx)
-	if err != nil {
-		stats["status"] = "down"
-		stats["error"] = fmt.Sprintf("db down: %v", err)
-		log.Fatalf("db down: %v", err) // Log the error and terminate the program
-		return stats
-	}
-
-	// Database is up, add more statistics
-	stats["status"] = "up"
-	stats["message"] = "It's healthy"
-
-	// Get database stats (like open connections, in use, idle, etc.)
-	dbStats := s.db.Stats()
-	stats["open_connections"] = strconv.Itoa(dbStats.OpenConnections)
-	stats["in_use"] = strconv.Itoa(dbStats.InUse)
-	stats["idle"] = strconv.Itoa(dbStats.Idle)
-	stats["wait_count"] = strconv.FormatInt(dbStats.WaitCount, 10)
-	stats["wait_duration"] = dbStats.WaitDuration.String()
-	stats["max_idle_closed"] = strconv.FormatInt(dbStats.MaxIdleClosed, 10)
-	stats["max_lifetime_closed"] = strconv.FormatInt(dbStats.MaxLifetimeClosed, 10)
-
-	// Evaluate stats to provide a health message
-	if dbStats.OpenConnections > 40 { // Assuming 50 is the max for this example
-		stats["message"] = "The database is experiencing heavy load."
-	}
-
-	if dbStats.WaitCount > 1000 {
-		stats["message"] = "The database has a high number of wait events, indicating potential bottlenecks."
-	}
-
-	if dbStats.MaxIdleClosed > int64(dbStats.OpenConnections)/2 {
-		stats["message"] = "Many idle connections are being closed, consider revising the connection pool settings."
-	}
-
-	if dbStats.MaxLifetimeClosed > int64(dbStats.OpenConnections)/2 {
-		stats["message"] = "Many connections are being closed due to max lifetime, consider increasing max lifetime or revising the connection usage pattern."
-	}
-
-	return stats
-}
-
-// Close closes the database connection.
-// It logs a message indicating the disconnection from the specific database.
-// If the connection is successfully closed, it returns nil.
-// If an error occurs while closing the connection, it returns the error.
-func (s *service) Close() error {
-	log.Printf("Disconnected from database: %s", database)
-	return s.db.Close()
 }
