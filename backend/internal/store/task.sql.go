@@ -13,25 +13,25 @@ import (
 const createTask = `-- name: CreateTask :one
 INSERT INTO tasks (
   id,
-  creator,
+  creator_id,
   name,
   deadline
 ) VALUES (
   $1, $2, $3, $4
-) RETURNING id, name, creator, deadline, completed, created_at
+) RETURNING id, name, creator_id, deadline, completed, created_at
 `
 
 type CreateTaskParams struct {
-	ID       string    `json:"id"`
-	Creator  string    `json:"creator"`
-	Name     string    `json:"name"`
-	Deadline time.Time `json:"deadline"`
+	ID        string    `json:"id"`
+	CreatorID int64     `json:"creator_id"`
+	Name      string    `json:"name"`
+	Deadline  time.Time `json:"deadline"`
 }
 
 func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error) {
 	row := q.db.QueryRow(ctx, createTask,
 		arg.ID,
-		arg.Creator,
+		arg.CreatorID,
 		arg.Name,
 		arg.Deadline,
 	)
@@ -39,7 +39,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Creator,
+		&i.CreatorID,
 		&i.Deadline,
 		&i.Completed,
 		&i.CreatedAt,

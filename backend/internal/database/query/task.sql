@@ -1,7 +1,7 @@
 -- name: CreateTask :one
 INSERT INTO tasks (
   id,
-  creator,
+  creator_id,
   name,
   deadline
 ) VALUES (

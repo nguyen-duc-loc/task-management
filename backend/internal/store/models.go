@@ -11,13 +11,14 @@ import (
 type Task struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
-	Creator   string    `json:"creator"`
+	CreatorID int64     `json:"creator_id"`
 	Deadline  time.Time `json:"deadline"`
 	Completed bool      `json:"completed"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 type User struct {
+	ID             int64     `json:"id"`
 	Username       string    `json:"username"`
 	HashedPassword string    `json:"hashed_password"`
 	CreatedAt      time.Time `json:"created_at"`
