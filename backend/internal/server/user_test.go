@@ -176,7 +176,9 @@ func TestCreateUserHandler(t *testing.T) {
 			storage := mockdb.NewMockStorage(ctrl)
 			tc.buildStubs(storage)
 
-			server := NewServer(storage)
+			server, err := NewServer(storage)
+			require.NoError(t, err)
+			server.RegisterRoutes()
 			recorder := httptest.NewRecorder()
 
 			data, err := json.Marshal(tc.body)
@@ -186,7 +188,7 @@ func TestCreateUserHandler(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
 			require.NoError(t, err)
 
-			server.Handler.ServeHTTP(recorder, request)
+			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(recorder)
 		})
 	}
@@ -307,7 +309,9 @@ func TestLoginUserHandler(t *testing.T) {
 			storage := mockdb.NewMockStorage(ctrl)
 			tc.buildStubs(storage)
 
-			server := NewServer(storage)
+			server, err := NewServer(storage)
+			require.NoError(t, err)
+			server.RegisterRoutes()
 			recorder := httptest.NewRecorder()
 
 			data, err := json.Marshal(tc.body)
@@ -317,7 +321,7 @@ func TestLoginUserHandler(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
 			require.NoError(t, err)
 
-			server.Handler.ServeHTTP(recorder, request)
+			server.router.ServeHTTP(recorder, request)
 			tc.checkResponse(recorder)
 		})
 	}

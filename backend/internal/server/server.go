@@ -2,12 +2,13 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 	"github.com/nguyen-duc-loc/task-management/backend/internal/store"
@@ -16,12 +17,33 @@ import (
 )
 
 type Server struct {
-	port       int
+	Port       int
+	router     *gin.Engine
 	storage    store.Storage
 	tokenMaker token.Maker
 }
 
-func NewServer(storage store.Storage) *http.Server {
+func (s *Server) RegisterRoutes() http.Handler {
+	s.router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{fmt.Sprintf("http://localhost:%s", os.Getenv("FRONTEND_PORT"))},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
+		AllowCredentials: true, // Enable cookies/auth
+	}))
+
+	s.router.GET("/health", s.healthHandler)
+
+	s.router.POST("/users", s.createUserHandler)
+	s.router.POST("/users/login", s.loginUserHandler)
+
+	return s.router
+}
+
+func (server *Server) Start(address string) error {
+	return server.router.Run(address)
+}
+
+func NewServer(storage store.Storage) (*Server, error) {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		// ISO8601 validator
 		v.RegisterValidation("iso8601", func(fl validator.FieldLevel) bool {
@@ -41,28 +63,20 @@ func NewServer(storage store.Storage) *http.Server {
 
 	jwtConfig, err := util.LoadJWTConfig()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	tokenMaker, err := token.NewJWTMaker(jwtConfig.SecretKey)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	port, _ := strconv.Atoi(os.Getenv("SERVER_PORT"))
-	NewServer := &Server{
-		port,
-		storage,
-		tokenMaker,
+	newServer := &Server{
+		Port:       port,
+		router:     gin.Default(),
+		storage:    storage,
+		tokenMaker: tokenMaker,
 	}
-
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", NewServer.port),
-		Handler:      NewServer.RegisterRoutes(),
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
-	}
-
-	return server
+	return newServer, nil
 }
