@@ -44,3 +44,7 @@ func RandomAlphaNumString(n int) string {
 
 	return sb.String()
 }
+
+func RandomUsername() string {
+	return RandomAlphaNumString(10)
+}

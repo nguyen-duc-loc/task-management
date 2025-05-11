@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -10,11 +11,14 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 	"github.com/nguyen-duc-loc/task-management/backend/internal/store"
+	"github.com/nguyen-duc-loc/task-management/backend/internal/token"
+	"github.com/nguyen-duc-loc/task-management/backend/util"
 )
 
 type Server struct {
-	port    int
-	storage store.Storage
+	port       int
+	storage    store.Storage
+	tokenMaker token.Maker
 }
 
 func NewServer(storage store.Storage) *http.Server {
@@ -35,10 +39,21 @@ func NewServer(storage store.Storage) *http.Server {
 		})
 	}
 
+	jwtConfig, err := util.LoadJWTConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tokenMaker, err := token.NewJWTMaker(jwtConfig.SecretKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	port, _ := strconv.Atoi(os.Getenv("SERVER_PORT"))
 	NewServer := &Server{
 		port,
 		storage,
+		tokenMaker,
 	}
 
 	server := &http.Server{

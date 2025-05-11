@@ -3,9 +3,14 @@ package util
 import (
 	"errors"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
+
+func init() {
+	godotenv.Load("../../.env")
+}
 
 type DatabaseConfig struct {
 	Host     string
@@ -16,9 +21,12 @@ type DatabaseConfig struct {
 	Schema   string
 }
 
-func LoadDatabaseConfig() (databaseConfig DatabaseConfig, err error) {
-	godotenv.Load("../../.env")
+type JWTConfig struct {
+	SecretKey           string
+	AccessTokenDuration time.Duration
+}
 
+func LoadDatabaseConfig() (databaseConfig DatabaseConfig, err error) {
 	database := os.Getenv("DB_DATABASE")
 	if len(database) == 0 {
 		err = errors.New("Database is not specified")
@@ -61,5 +69,27 @@ func LoadDatabaseConfig() (databaseConfig DatabaseConfig, err error) {
 	databaseConfig.Username = username
 	databaseConfig.Password = password
 	databaseConfig.Schema = schema
+	return
+}
+
+func LoadJWTConfig() (jwtConfig JWTConfig, err error) {
+	secretKey := os.Getenv("JWT_SECRET_KEY")
+	if len(secretKey) == 0 {
+		err = errors.New("JWT secret key is not specified")
+		return
+	}
+
+	accessTokenDurationEnv := os.Getenv("JWT_ACCESS_TOKEN_DURATION")
+	if len(accessTokenDurationEnv) == 0 {
+		err = errors.New("Access token duration is not specified")
+		return
+	}
+	accessTokenDuration, err := time.ParseDuration(accessTokenDurationEnv)
+	if err != nil {
+		return
+	}
+
+	jwtConfig.SecretKey = secretKey
+	jwtConfig.AccessTokenDuration = accessTokenDuration
 	return
 }

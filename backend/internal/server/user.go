@@ -65,7 +65,9 @@ type loginUserRequest struct {
 }
 
 type loginResponse struct {
-	User userResponse `json:"user"`
+	AccessToken         string       `json:"access_token"`
+	AccessTokenExpireAt time.Time    `json:"access_token_expire_at"`
+	User                userResponse `json:"user"`
 }
 
 func (s *Server) loginUserHandler(ctx *gin.Context) {
@@ -91,7 +93,25 @@ func (s *Server) loginUserHandler(ctx *gin.Context) {
 		return
 	}
 
+	jwtConfig, err := util.LoadJWTConfig()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	accessToken, accessPayload, err := s.tokenMaker.CreateToken(
+		user.ID,
+		user.Username,
+		jwtConfig.AccessTokenDuration,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
 	ctx.JSON(http.StatusOK, loginResponse{
-		User: newUserResponse(user),
+		AccessToken:         accessToken,
+		AccessTokenExpireAt: accessPayload.ExpireAt,
+		User:                newUserResponse(user),
 	})
 }

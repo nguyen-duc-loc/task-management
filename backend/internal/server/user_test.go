@@ -25,7 +25,7 @@ func randomUser(t *testing.T) (user store.User, password string) {
 	require.NoError(t, err)
 
 	user = store.User{
-		Username:       util.RandomAlphaNumString(10),
+		Username:       util.RandomUsername(),
 		HashedPassword: hashedPassword,
 	}
 
