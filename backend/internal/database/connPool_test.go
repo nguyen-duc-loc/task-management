@@ -67,40 +67,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestNew(t *testing.T) {
-	dbInstance := New()
-	if dbInstance == nil {
+	connPool := NewConnPool()
+	if connPool == nil {
 		t.Fatal("New() returned nil")
-	}
-}
-
-func TestHealth(t *testing.T) {
-	dbInstance := New()
-
-	stats := dbInstance.Health()
-
-	if stats["status"] != "up" {
-		t.Fatalf("expected status to be up, got %s", stats["status"])
-	}
-
-	if _, ok := stats["error"]; ok {
-		t.Fatalf("expected error not to be present")
-	}
-
-	if stats["message"] != "It's healthy" {
-		t.Fatalf("expected message to be 'It's healthy', got %s", stats["message"])
-	}
-}
-
-func TestClose(t *testing.T) {
-	dbInstance := New()
-
-	dbInstance.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	err := dbInstance.connPool.Ping(ctx)
-	if nil == err {
-		t.Fatalf("expected status to be down")
 	}
 }

@@ -7,20 +7,38 @@ import (
 	"strconv"
 	"time"
 
-	_ "github.com/joho/godotenv/autoload"
-	"github.com/nguyen-duc-loc/task-management/backend/internal/database"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
+	"github.com/nguyen-duc-loc/task-management/backend/internal/store"
 )
 
 type Server struct {
-	port int
-	db   database.Database
+	port    int
+	storage store.Storage
 }
 
-func NewServer() *http.Server {
+func NewServer(storage store.Storage) *http.Server {
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		// ISO8601 validator
+		v.RegisterValidation("iso8601", func(fl validator.FieldLevel) bool {
+			_, err := time.Parse(time.RFC3339, fl.Field().String())
+			return nil == err
+		})
+
+		// Future validator
+		v.RegisterValidation("future", func(fl validator.FieldLevel) bool {
+			t, ok := fl.Field().Interface().(time.Time)
+			if !ok {
+				return false
+			}
+			return t.After(time.Now())
+		})
+	}
+
 	port, _ := strconv.Atoi(os.Getenv("SERVER_PORT"))
 	NewServer := &Server{
-		port: port,
-		db:   *database.New(),
+		port,
+		storage,
 	}
 
 	server := &http.Server{

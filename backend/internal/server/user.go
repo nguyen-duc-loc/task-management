@@ -1,0 +1,97 @@
+package server
+
+import (
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/nguyen-duc-loc/task-management/backend/internal/store"
+	"github.com/nguyen-duc-loc/task-management/backend/util"
+)
+
+type createUserRequest struct {
+	Username string `json:"username" binding:"required,alphanum"`
+	Password string `json:"password" binding:"required,min=6"`
+}
+
+type userResponse struct {
+	ID        int64     `json:"id"`
+	Username  string    `json:"username"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func newUserResponse(user store.User) userResponse {
+	return userResponse{
+		Username:  user.Username,
+		CreatedAt: user.CreatedAt,
+	}
+}
+
+func (s *Server) createUserHandler(ctx *gin.Context) {
+	var req createUserRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	hashedPassword, err := util.HashPassword(req.Password)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	arg := store.CreateUserParams{
+		Username:       req.Username,
+		HashedPassword: hashedPassword,
+	}
+
+	user, err := s.storage.CreateUser(ctx, arg)
+	if err != nil {
+		if store.ErrorCode(err) == store.UniqueViolation {
+			ctx.JSON(http.StatusConflict, errorResponse(err))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, newUserResponse(user))
+}
+
+type loginUserRequest struct {
+	Username string `json:"username" binding:"required,alphanum"`
+	Password string `json:"password" binding:"required,min=6"`
+}
+
+type loginResponse struct {
+	User userResponse `json:"user"`
+}
+
+func (s *Server) loginUserHandler(ctx *gin.Context) {
+	var req loginUserRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	user, err := s.storage.GetUser(ctx, req.Username)
+	if err != nil {
+		if errors.Is(err, store.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	err = util.CheckPassword(req.Password, user.HashedPassword)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, loginResponse{
+		User: newUserResponse(user),
+	})
+}

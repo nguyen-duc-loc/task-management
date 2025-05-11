@@ -6,14 +6,17 @@ import (
 
 type Storage interface {
 	Querier
+	Health() map[string]string
 }
 
 type SQLStorage struct {
+	connPool *pgxpool.Pool
 	*Queries
 }
 
 func NewStorage(connPool *pgxpool.Pool) Storage {
 	return &SQLStorage{
-		Queries: New(connPool),
+		connPool: connPool,
+		Queries:  New(connPool),
 	}
 }

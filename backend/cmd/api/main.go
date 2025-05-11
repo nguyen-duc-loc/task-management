@@ -9,8 +9,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
+	"github.com/nguyen-duc-loc/task-management/backend/internal/database"
 	"github.com/nguyen-duc-loc/task-management/backend/internal/server"
+	"github.com/nguyen-duc-loc/task-management/backend/internal/store"
 )
+
+func init() {
+	godotenv.Load()
+}
 
 func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	// Create context that listens for the interrupt signal from the OS.
@@ -38,7 +45,7 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 }
 
 func main() {
-	server := server.NewServer()
+	server := server.NewServer(store.NewStorage(database.NewConnPool()))
 
 	// Create a done channel to signal when the shutdown is complete
 	done := make(chan bool, 1)

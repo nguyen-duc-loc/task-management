@@ -23,9 +23,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.GET("/health", s.healthHandler)
 
-	return r
-}
+	r.POST("/users", s.createUserHandler)
+	r.POST("/users/login", s.loginUserHandler)
 
-func (s *Server) healthHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, s.db.Health())
+	return r
 }

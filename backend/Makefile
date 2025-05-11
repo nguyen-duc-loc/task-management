@@ -38,6 +38,10 @@ migrate/down1:
 sqlc:
 	@sqlc generate
 
+# Init mock database
+mock:
+	@mockgen -package mockdb -destination internal/database/mock/store.go github.com/nguyen-duc-loc/task-management/backend/internal/store Storage
+
 all: build test
 
 # Build the application

@@ -1,31 +1,20 @@
-package database
+package store
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "github.com/joho/godotenv/autoload"
-	"github.com/nguyen-duc-loc/task-management/backend/internal/store"
 )
 
-type Database struct {
-	connPool *pgxpool.Pool
-	storage  store.Storage
-}
-
-func (d *Database) Health() map[string]string {
+func (s *SQLStorage) Health() map[string]string {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	stats := make(map[string]string)
 
-	err := d.connPool.Ping(ctx)
+	err := s.connPool.Ping(ctx)
 	if err != nil {
 		stats["status"] = "down"
 		stats["error"] = fmt.Sprintf("db down: %v", err)
@@ -36,7 +25,7 @@ func (d *Database) Health() map[string]string {
 	stats["status"] = "up"
 	stats["message"] = "It's healthy"
 
-	poolStats := d.connPool.Stat()
+	poolStats := s.connPool.Stat()
 	stats["acquire_count"] = strconv.FormatInt(poolStats.AcquireCount(), 10)
 	stats["acquired_conns"] = strconv.FormatInt(int64(poolStats.AcquiredConns()), 10)
 	stats["acquire_duration"] = poolStats.AcquireDuration().String()
@@ -68,36 +57,4 @@ func (d *Database) Health() map[string]string {
 	}
 
 	return stats
-}
-
-func (d *Database) Close() {
-	log.Printf("Disconnected from database: %s", d.connPool.Config().ConnConfig.Database)
-	d.connPool.Close()
-}
-
-var (
-	database   = os.Getenv("DB_DATABASE")
-	password   = os.Getenv("DB_PASSWORD")
-	username   = os.Getenv("DB_USERNAME")
-	port       = os.Getenv("DB_PORT")
-	host       = os.Getenv("DB_HOST")
-	schema     = os.Getenv("DB_SCHEMA")
-	dbInstance *Database
-)
-
-func New() *Database {
-	if dbInstance != nil {
-		return dbInstance
-	}
-
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
-	connPool, err := pgxpool.New(context.Background(), connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return &Database{
-		connPool: connPool,
-		storage:  store.NewStorage(connPool),
-	}
 }
