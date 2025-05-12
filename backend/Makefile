@@ -42,7 +42,7 @@ sqlc:
 mock:
 	@mockgen -package mockdb -destination internal/database/mock/store.go github.com/nguyen-duc-loc/task-management/backend/internal/store Storage
 
-all: build test
+all: audit test build
 
 # Build the application
 build:
@@ -71,10 +71,20 @@ docker/down:
 		docker-compose down; \
 	fi
 
+# Tidy dependencies and format, vet and test all code
+.PHONY: 
+audit:
+	@echo "Formatting code..."
+	@go fmt ./...
+	@echo "Vetting code..."
+	@go vet ./...
+	@echo "Staticcheck checking..."
+	@staticcheck ./...
+
 # Test the application
 test:
 	@echo "Testing..."
-	@go test ./... -v
+	@go test ./... -v -race -vet=off
 
 # Integrations Tests for the application
 itest:
@@ -103,4 +113,4 @@ watch:
             fi; \
         fi
 
-.PHONY: postgres db/create db/drop migrate/new migrate/up migrate/up1 migrate/down migrate/down1 all build run test clean watch docker-run docker-down itest
+.PHONY: postgres db/create db/drop migrate/new migrate/up migrate/up1 migrate/down migrate/down1 all build run audit test clean watch docker-run docker-down itest

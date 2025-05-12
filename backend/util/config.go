@@ -29,37 +29,37 @@ type JWTConfig struct {
 func LoadDatabaseConfig() (databaseConfig DatabaseConfig, err error) {
 	database := os.Getenv("DB_DATABASE")
 	if len(database) == 0 {
-		err = errors.New("Database is not specified")
+		err = errors.New("database is not specified")
 		return
 	}
 
 	password := os.Getenv("DB_PASSWORD")
 	if len(password) == 0 {
-		err = errors.New("Database password is not specified")
+		err = errors.New("database password is not specified")
 		return
 	}
 
 	username := os.Getenv("DB_USERNAME")
 	if len(username) == 0 {
-		err = errors.New("Database username is not specified")
+		err = errors.New("database username is not specified")
 		return
 	}
 
 	port := os.Getenv("DB_PORT")
 	if len(port) == 0 {
-		err = errors.New("Database port is not specified")
+		err = errors.New("database port is not specified")
 		return
 	}
 
 	host := os.Getenv("DB_HOST")
 	if len(host) == 0 {
-		err = errors.New("Database host is not specified")
+		err = errors.New("database host is not specified")
 		return
 	}
 
 	schema := os.Getenv("DB_SCHEMA")
 	if len(schema) == 0 {
-		err = errors.New("Database schema is not specified")
+		err = errors.New("database schema is not specified")
 		return
 	}
 
@@ -81,7 +81,7 @@ func LoadJWTConfig() (jwtConfig JWTConfig, err error) {
 
 	accessTokenDurationEnv := os.Getenv("JWT_ACCESS_TOKEN_DURATION")
 	if len(accessTokenDurationEnv) == 0 {
-		err = errors.New("Access token duration is not specified")
+		err = errors.New("access token duration is not specified")
 		return
 	}
 	accessTokenDuration, err := time.ParseDuration(accessTokenDurationEnv)
