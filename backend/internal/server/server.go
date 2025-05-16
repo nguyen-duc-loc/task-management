@@ -36,6 +36,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 	s.router.POST("/users", s.createUserHandler)
 	s.router.POST("/users/login", s.loginUserHandler)
 
+	authRoutes := s.router.Group("/").Use(authMiddleware(s.tokenMaker))
+	authRoutes.POST("/tasks", s.createTaskHandler)
+
 	return s.router
 }
 
@@ -49,15 +52,6 @@ func NewServer(storage store.Storage) (*Server, error) {
 		v.RegisterValidation("iso8601", func(fl validator.FieldLevel) bool {
 			_, err := time.Parse(time.RFC3339, fl.Field().String())
 			return nil == err
-		})
-
-		// Future validator
-		v.RegisterValidation("future", func(fl validator.FieldLevel) bool {
-			t, ok := fl.Field().Interface().(time.Time)
-			if !ok {
-				return false
-			}
-			return t.After(time.Now())
 		})
 	}
 

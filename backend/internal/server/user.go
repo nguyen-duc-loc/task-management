@@ -23,6 +23,7 @@ type userResponse struct {
 
 func newUserResponse(user store.User) userResponse {
 	return userResponse{
+		ID:        user.ID,
 		Username:  user.Username,
 		CreatedAt: user.CreatedAt,
 	}

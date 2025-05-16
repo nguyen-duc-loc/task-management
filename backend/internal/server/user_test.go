@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -25,6 +26,7 @@ func randomUser(t *testing.T) (user store.User, password string) {
 	require.NoError(t, err)
 
 	user = store.User{
+		ID:             rand.Int64(),
 		Username:       util.RandomUsername(),
 		HashedPassword: hashedPassword,
 	}
