@@ -8,6 +8,8 @@ package store
 import (
 	"context"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createTask = `-- name: CreateTask :one
@@ -45,4 +47,70 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getTasks = `-- name: GetTasks :many
+SELECT id, name, creator_id, deadline, completed, created_at FROM tasks
+WHERE 
+  creator_id = $1
+  AND (name ILIKE '%' || COALESCE($4, '') || '%')
+  AND (
+    $5::timestamptz IS NULL
+    OR deadline >= $5
+  )
+  AND (
+    $6::timestamptz IS NULL
+    OR deadline <= $6
+  )
+  AND (
+    $7::bool IS NULL 
+    OR completed = $7::bool
+  )
+  ORDER BY completed ASC, deadline ASC
+  LIMIT $2 OFFSET $3
+`
+
+type GetTasksParams struct {
+	CreatorID     int64              `json:"creator_id"`
+	Limit         int32              `json:"limit"`
+	Offset        int32              `json:"offset"`
+	Name          pgtype.Text        `json:"name"`
+	StartDeadline pgtype.Timestamptz `json:"start_deadline"`
+	EndDeadline   pgtype.Timestamptz `json:"end_deadline"`
+	Completed     pgtype.Bool        `json:"completed"`
+}
+
+func (q *Queries) GetTasks(ctx context.Context, arg GetTasksParams) ([]Task, error) {
+	rows, err := q.db.Query(ctx, getTasks,
+		arg.CreatorID,
+		arg.Limit,
+		arg.Offset,
+		arg.Name,
+		arg.StartDeadline,
+		arg.EndDeadline,
+		arg.Completed,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Task{}
+	for rows.Next() {
+		var i Task
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CreatorID,
+			&i.Deadline,
+			&i.Completed,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

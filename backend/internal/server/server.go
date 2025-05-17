@@ -37,6 +37,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	s.router.POST("/users/login", s.loginUserHandler)
 
 	authRoutes := s.router.Group("/").Use(authMiddleware(s.tokenMaker))
+	authRoutes.GET("/tasks", s.getTasksHandler)
 	authRoutes.POST("/tasks", s.createTaskHandler)
 
 	return s.router

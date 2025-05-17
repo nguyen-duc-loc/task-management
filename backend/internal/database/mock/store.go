@@ -71,6 +71,21 @@ func (mr *MockStorageMockRecorder) CreateUser(ctx, arg any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockStorage)(nil).CreateUser), ctx, arg)
 }
 
+// GetTasks mocks base method.
+func (m *MockStorage) GetTasks(ctx context.Context, arg store.GetTasksParams) ([]store.Task, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTasks", ctx, arg)
+	ret0, _ := ret[0].([]store.Task)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTasks indicates an expected call of GetTasks.
+func (mr *MockStorageMockRecorder) GetTasks(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTasks", reflect.TypeOf((*MockStorage)(nil).GetTasks), ctx, arg)
+}
+
 // GetUser mocks base method.
 func (m *MockStorage) GetUser(ctx context.Context, username string) (store.User, error) {
 	m.ctrl.T.Helper()
