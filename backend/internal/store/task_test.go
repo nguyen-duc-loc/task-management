@@ -90,3 +90,11 @@ func TestGetTasksWithNullValue(t *testing.T) {
 	require.NotEmpty(t, task2)
 	require.Equal(t, task1, task2)
 }
+
+func TestGetTaskByID(t *testing.T) {
+	task1 := createRandomTask(t)
+	task2, err := testStore.GetTaskByID(context.Background(), task1.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, task2)
+	require.Equal(t, task1, task2)
+}

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -115,4 +116,36 @@ func (s *Server) getTasksHandler(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, tasks)
+}
+
+type getTaskByIDRequest struct {
+	ID string `uri:"id" binding:"required"`
+}
+
+func (s *Server) getTaskByIDHandler(ctx *gin.Context) {
+	var req getTaskByIDRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	task, err := s.storage.GetTaskByID(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, store.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	authPayload := ctx.MustGet(authorizationPayloadKey).(*token.Payload)
+	if task.CreatorID != authPayload.UserID {
+		err := errors.New("task doesn't belong to the authenticated user")
+		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, task)
 }

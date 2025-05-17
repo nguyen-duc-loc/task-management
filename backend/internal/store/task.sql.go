@@ -49,6 +49,25 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 	return i, err
 }
 
+const getTaskByID = `-- name: GetTaskByID :one
+SELECT id, name, creator_id, deadline, completed, created_at FROM tasks
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetTaskByID(ctx context.Context, id string) (Task, error) {
+	row := q.db.QueryRow(ctx, getTaskByID, id)
+	var i Task
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatorID,
+		&i.Deadline,
+		&i.Completed,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getTasks = `-- name: GetTasks :many
 SELECT id, name, creator_id, deadline, completed, created_at FROM tasks
 WHERE 

@@ -27,3 +27,7 @@ WHERE
   )
   ORDER BY completed ASC, deadline ASC
   LIMIT $2 OFFSET $3;
+
+-- name: GetTaskByID :one
+SELECT * FROM tasks
+WHERE id = $1 LIMIT 1;
