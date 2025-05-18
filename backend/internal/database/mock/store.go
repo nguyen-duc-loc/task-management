@@ -71,6 +71,20 @@ func (mr *MockStorageMockRecorder) CreateUser(ctx, arg any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockStorage)(nil).CreateUser), ctx, arg)
 }
 
+// DeleteTask mocks base method.
+func (m *MockStorage) DeleteTask(ctx context.Context, id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteTask", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteTask indicates an expected call of DeleteTask.
+func (mr *MockStorageMockRecorder) DeleteTask(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTask", reflect.TypeOf((*MockStorage)(nil).DeleteTask), ctx, id)
+}
+
 // GetTaskByID mocks base method.
 func (m *MockStorage) GetTaskByID(ctx context.Context, id string) (store.Task, error) {
 	m.ctrl.T.Helper()

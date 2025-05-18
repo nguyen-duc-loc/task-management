@@ -914,3 +914,115 @@ func TestUpdateHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteTaskHandler(t *testing.T) {
+	user, _ := randomUser(t)
+	task := randomTask(t, user.ID)
+
+	testCases := []struct {
+		name          string
+		setupAuth     func(t *testing.T, request *http.Request, tokenMaker token.Maker)
+		buildStubs    func(storage *mockdb.MockStorage)
+		checkResponse func(recoder *httptest.ResponseRecorder)
+	}{
+		{
+			name: "OK",
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1).
+					Return(task, nil)
+				storage.EXPECT().
+					DeleteTask(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNoContent, recorder.Code)
+			},
+		},
+		{
+			name: "NotFound",
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1).
+					Return(store.Task{}, store.ErrRecordNotFound)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
+			},
+		},
+		{
+			name: "UnauthorizedUser",
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID-1, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1).
+					Return(store.Task{}, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+		},
+		{
+			name: "NoAuthorization",
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+		},
+		{
+			name: "InternalError",
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(store.Task{}, sql.ErrConnDone)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			storage := mockdb.NewMockStorage(ctrl)
+			tc.buildStubs(storage)
+
+			server, err := NewServer(storage)
+			require.NoError(t, err)
+			server.RegisterRoutes()
+			recorder := httptest.NewRecorder()
+
+			url := fmt.Sprintf("/tasks/%s", task.ID)
+			request, err := http.NewRequest(http.MethodDelete, url, nil)
+			require.NoError(t, err)
+
+			tc.setupAuth(t, request, server.tokenMaker)
+			server.router.ServeHTTP(recorder, request)
+			tc.checkResponse(recorder)
+		})
+	}
+}

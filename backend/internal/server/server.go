@@ -41,6 +41,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	authRoutes.GET("/tasks/:id", s.getTaskByIDHandler)
 	authRoutes.POST("/tasks", s.createTaskHandler)
 	authRoutes.PUT("/tasks/:id", s.updateTasksHandler)
+	authRoutes.DELETE("/tasks/:id", s.deleteTaskHandler)
 
 	return s.router
 }

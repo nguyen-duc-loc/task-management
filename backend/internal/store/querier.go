@@ -11,6 +11,7 @@ import (
 type Querier interface {
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteTask(ctx context.Context, id string) error
 	GetTaskByID(ctx context.Context, id string) (Task, error)
 	GetTasks(ctx context.Context, arg GetTasksParams) ([]Task, error)
 	GetUser(ctx context.Context, username string) (User, error)

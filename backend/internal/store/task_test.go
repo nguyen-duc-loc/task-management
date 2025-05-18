@@ -182,3 +182,12 @@ func TestUpdateTaskAllFields(t *testing.T) {
 	require.WithinDuration(t, newDeadline, updatedTask.Deadline, time.Second)
 	require.Equal(t, newStatus, updatedTask.Completed)
 }
+
+func TestDeleteTask(t *testing.T) {
+	task1 := createRandomTask(t)
+	err := testStore.DeleteTask(context.Background(), task1.ID)
+	require.NoError(t, err)
+	task2, err := testStore.GetTaskByID(context.Background(), task1.ID)
+	require.Error(t, err)
+	require.Empty(t, task2)
+}

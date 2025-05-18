@@ -221,3 +221,41 @@ func (s *Server) updateTasksHandler(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, newTask)
 }
+
+type deleteTaskRequest struct {
+	ID string `uri:"id" binding:"required"`
+}
+
+func (s *Server) deleteTaskHandler(ctx *gin.Context) {
+	var req deleteTaskRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	task, err := s.storage.GetTaskByID(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, store.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	authPayload := ctx.MustGet(authorizationPayloadKey).(*token.Payload)
+	if task.CreatorID != authPayload.UserID {
+		err := errors.New("task doesn't belong to the authenticated user")
+		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
+		return
+	}
+
+	err = s.storage.DeleteTask(ctx, req.ID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusNoContent, nil)
+}

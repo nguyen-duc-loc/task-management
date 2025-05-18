@@ -49,6 +49,16 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 	return i, err
 }
 
+const deleteTask = `-- name: DeleteTask :exec
+DELETE FROM tasks
+WHERE id = $1
+`
+
+func (q *Queries) DeleteTask(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteTask, id)
+	return err
+}
+
 const getTaskByID = `-- name: GetTaskByID :one
 SELECT id, name, creator_id, deadline, completed, created_at FROM tasks
 WHERE id = $1 LIMIT 1
