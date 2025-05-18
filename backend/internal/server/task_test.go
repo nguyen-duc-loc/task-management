@@ -119,7 +119,7 @@ func TestCreateTaskHandler(t *testing.T) {
 					Return(task, nil)
 			},
 			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusOK, recorder.Code)
+				require.Equal(t, http.StatusCreated, recorder.Code)
 				requireBodyMatchTask(t, recorder.Body, task)
 			},
 		},

@@ -45,7 +45,7 @@ func (s *Server) createTaskHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, task)
+	ctx.JSON(http.StatusCreated, task)
 }
 
 type getTasksRequest struct {
