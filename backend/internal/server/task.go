@@ -149,3 +149,75 @@ func (s *Server) getTaskByIDHandler(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, task)
 }
+
+type updateTaskRequest struct {
+	ID        string `uri:"id" binding:"required"`
+	Name      string `json:"name" binding:"omitempty"`
+	Deadline  string `json:"deadline" binding:"omitempty,iso8601"`
+	Completed *bool  `json:"completed" binding:"omitempty"`
+}
+
+func (s *Server) updateTasksHandler(ctx *gin.Context) {
+	var req updateTaskRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	task, err := s.storage.GetTaskByID(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, store.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	authPayload := ctx.MustGet(authorizationPayloadKey).(*token.Payload)
+	if task.CreatorID != authPayload.UserID {
+		err := errors.New("task doesn't belong to the authenticated user")
+		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
+		return
+	}
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	arg := store.UpdateTaskParams{
+		ID: req.ID,
+	}
+
+	if len(req.Name) > 0 {
+		arg.Name = pgtype.Text{
+			String: req.Name,
+			Valid:  true,
+		}
+	}
+
+	if len(req.Deadline) > 0 {
+		deadline, _ := time.Parse(time.RFC3339, req.Deadline)
+		arg.Deadline = pgtype.Timestamptz{
+			Time:  deadline,
+			Valid: true,
+		}
+	}
+
+	if req.Completed != nil {
+		arg.Completed = pgtype.Bool{
+			Bool:  *req.Completed,
+			Valid: true,
+		}
+	}
+
+	newTask, err := s.storage.UpdateTask(ctx, arg)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, newTask)
+}

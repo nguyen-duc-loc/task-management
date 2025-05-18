@@ -84,7 +84,6 @@ func requireBodyMatchTask(t *testing.T, body *bytes.Buffer, task store.Task) {
 	require.Equal(t, gotTask.CreatorID, task.CreatorID)
 	require.Equal(t, gotTask.Name, task.Name)
 	require.WithinDuration(t, gotTask.Deadline, task.Deadline, time.Second)
-	require.False(t, gotTask.Completed)
 }
 
 func TestCreateTaskHandler(t *testing.T) {
@@ -517,7 +516,7 @@ func TestGetTaskByIDHandler(t *testing.T) {
 		{
 			name: "UnauthorizedUser",
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
-				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, 100, user.Username, time.Minute)
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID-1, user.Username, time.Minute)
 			},
 			buildStubs: func(storage *mockdb.MockStorage) {
 				storage.EXPECT().
@@ -574,6 +573,339 @@ func TestGetTaskByIDHandler(t *testing.T) {
 
 			url := fmt.Sprintf("/tasks/%s", task.ID)
 			request, err := http.NewRequest(http.MethodGet, url, nil)
+			require.NoError(t, err)
+
+			tc.setupAuth(t, request, server.tokenMaker)
+			server.router.ServeHTTP(recorder, request)
+			tc.checkResponse(recorder)
+		})
+	}
+}
+
+type eqUpdateTaskParamsMatcher struct {
+	arg store.UpdateTaskParams
+}
+
+func (e eqUpdateTaskParamsMatcher) Matches(x interface{}) bool {
+	arg, ok := x.(store.UpdateTaskParams)
+	if !ok {
+		return false
+	}
+
+	if e.arg.Name != arg.Name {
+		return false
+	}
+
+	if e.arg.Deadline.Time.Sub(arg.Deadline.Time) > time.Second || arg.Deadline.Time.Sub(e.arg.Deadline.Time) > time.Second {
+		return false
+	}
+
+	if len(arg.ID) == 0 {
+		return false
+	}
+
+	return true
+}
+
+func (e eqUpdateTaskParamsMatcher) String() string {
+	return fmt.Sprintf("arg: %v", e.arg)
+}
+
+func EqUpdateTaskParams(arg store.UpdateTaskParams) gomock.Matcher {
+	return eqUpdateTaskParamsMatcher{arg}
+}
+
+func TestUpdateHandler(t *testing.T) {
+	user, _ := randomUser(t)
+	task := randomTask(t, user.ID)
+	newName := util.RandomPrintableString(100)
+	newDeadline := time.Now().Add(2 * time.Hour)
+	newCompleted := !task.Completed
+
+	testCases := []struct {
+		name          string
+		body          gin.H
+		setupAuth     func(t *testing.T, request *http.Request, tokenMaker token.Maker)
+		buildStubs    func(storage *mockdb.MockStorage)
+		checkResponse func(recoder *httptest.ResponseRecorder)
+	}{
+		{
+			name: "UpdateAllFields",
+			body: gin.H{
+				"name":      newName,
+				"deadline":  newDeadline.Format(time.RFC3339),
+				"completed": newCompleted,
+			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1).
+					Return(task, nil)
+
+				newTask := store.Task{
+					ID:        task.ID,
+					CreatorID: task.CreatorID,
+					Name:      newName,
+					Deadline:  newDeadline,
+					Completed: newCompleted,
+				}
+
+				arg := store.UpdateTaskParams{
+					ID: task.ID,
+					Name: pgtype.Text{
+						String: newTask.Name,
+						Valid:  true,
+					},
+					Deadline: pgtype.Timestamptz{
+						Time:  newTask.Deadline,
+						Valid: true,
+					},
+					Completed: pgtype.Bool{
+						Bool:  newTask.Completed,
+						Valid: true,
+					},
+				}
+
+				storage.EXPECT().
+					UpdateTask(gomock.Any(), EqUpdateTaskParams(arg)).
+					Times(1).
+					Return(newTask, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+				requireBodyMatchTask(t, recorder.Body, store.Task{
+					ID:        task.ID,
+					CreatorID: task.CreatorID,
+					Name:      newName,
+					Deadline:  newDeadline,
+					Completed: newCompleted,
+					CreatedAt: task.CreatedAt,
+				})
+			},
+		},
+		{
+			name: "UpdateOnlyDeadline",
+			body: gin.H{
+				"deadline": newDeadline.Format(time.RFC3339),
+			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1).
+					Return(task, nil)
+
+				newTask := store.Task{
+					ID:        task.ID,
+					CreatorID: task.CreatorID,
+					Name:      task.Name,
+					Deadline:  newDeadline,
+					Completed: task.Completed,
+				}
+
+				arg := store.UpdateTaskParams{
+					ID: task.ID,
+					Deadline: pgtype.Timestamptz{
+						Time:  newTask.Deadline,
+						Valid: true,
+					},
+				}
+
+				storage.EXPECT().
+					UpdateTask(gomock.Any(), EqUpdateTaskParams(arg)).
+					Times(1).
+					Return(newTask, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+				requireBodyMatchTask(t, recorder.Body, store.Task{
+					ID:        task.ID,
+					CreatorID: task.CreatorID,
+					Name:      task.Name,
+					Deadline:  newDeadline,
+					Completed: task.Completed,
+					CreatedAt: task.CreatedAt,
+				})
+			},
+		},
+		{
+			name: "UpdateOnlyName",
+			body: gin.H{
+				"name": newName,
+			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1).
+					Return(task, nil)
+
+				newTask := store.Task{
+					ID:        task.ID,
+					CreatorID: task.CreatorID,
+					Name:      newName,
+					Deadline:  task.Deadline,
+					Completed: task.Completed,
+				}
+
+				arg := store.UpdateTaskParams{
+					ID: task.ID,
+					Name: pgtype.Text{
+						String: newTask.Name,
+						Valid:  true,
+					},
+				}
+
+				storage.EXPECT().
+					UpdateTask(gomock.Any(), EqUpdateTaskParams(arg)).
+					Times(1).
+					Return(newTask, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+				requireBodyMatchTask(t, recorder.Body, store.Task{
+					ID:        task.ID,
+					CreatorID: task.CreatorID,
+					Name:      newName,
+					Deadline:  task.Deadline,
+					Completed: task.Completed,
+					CreatedAt: task.CreatedAt,
+				})
+			},
+		},
+		{
+			name: "UpdateOnlyCompleted",
+			body: gin.H{
+				"completed": newCompleted,
+			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1).
+					Return(task, nil)
+
+				newTask := store.Task{
+					ID:        task.ID,
+					CreatorID: task.CreatorID,
+					Name:      task.Name,
+					Deadline:  task.Deadline,
+					Completed: newCompleted,
+				}
+
+				arg := store.UpdateTaskParams{
+					ID: task.ID,
+					Completed: pgtype.Bool{
+						Bool:  newTask.Completed,
+						Valid: true,
+					},
+				}
+
+				storage.EXPECT().
+					UpdateTask(gomock.Any(), EqUpdateTaskParams(arg)).
+					Times(1).
+					Return(newTask, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+				requireBodyMatchTask(t, recorder.Body, store.Task{
+					ID:        task.ID,
+					CreatorID: task.CreatorID,
+					Name:      task.Name,
+					Deadline:  task.Deadline,
+					Completed: newCompleted,
+					CreatedAt: task.CreatedAt,
+				})
+			},
+		},
+		{
+			name: "NotFound",
+			body: gin.H{},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1).
+					Return(store.Task{}, store.ErrRecordNotFound)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
+			},
+		},
+		{
+			name: "UnauthorizedUser",
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID-1, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1).
+					Return(store.Task{}, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+		},
+		{
+			name: "NoAuthorization",
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+		},
+		{
+			name: "InternalError",
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(store.Task{}, sql.ErrConnDone)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			storage := mockdb.NewMockStorage(ctrl)
+			tc.buildStubs(storage)
+
+			server, err := NewServer(storage)
+			require.NoError(t, err)
+			server.RegisterRoutes()
+			recorder := httptest.NewRecorder()
+
+			data, err := json.Marshal(tc.body)
+			require.NoError(t, err)
+
+			url := fmt.Sprintf("/tasks/%s", task.ID)
+			request, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(data))
 			require.NoError(t, err)
 
 			tc.setupAuth(t, request, server.tokenMaker)

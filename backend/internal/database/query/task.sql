@@ -31,3 +31,13 @@ WHERE
 -- name: GetTaskByID :one
 SELECT * FROM tasks
 WHERE id = $1 LIMIT 1;
+
+-- name: UpdateTask :one
+UPDATE tasks
+SET
+  name = COALESCE(sqlc.narg(name), name),
+  deadline = COALESCE(sqlc.narg(deadline), deadline),
+  completed = COALESCE(sqlc.narg(completed), completed)
+WHERE
+  id = $1
+RETURNING *;

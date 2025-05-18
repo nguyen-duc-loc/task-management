@@ -133,3 +133,40 @@ func (q *Queries) GetTasks(ctx context.Context, arg GetTasksParams) ([]Task, err
 	}
 	return items, nil
 }
+
+const updateTask = `-- name: UpdateTask :one
+UPDATE tasks
+SET
+  name = COALESCE($2, name),
+  deadline = COALESCE($3, deadline),
+  completed = COALESCE($4, completed)
+WHERE
+  id = $1
+RETURNING id, name, creator_id, deadline, completed, created_at
+`
+
+type UpdateTaskParams struct {
+	ID        string             `json:"id"`
+	Name      pgtype.Text        `json:"name"`
+	Deadline  pgtype.Timestamptz `json:"deadline"`
+	Completed pgtype.Bool        `json:"completed"`
+}
+
+func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, error) {
+	row := q.db.QueryRow(ctx, updateTask,
+		arg.ID,
+		arg.Name,
+		arg.Deadline,
+		arg.Completed,
+	)
+	var i Task
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatorID,
+		&i.Deadline,
+		&i.Completed,
+		&i.CreatedAt,
+	)
+	return i, err
+}

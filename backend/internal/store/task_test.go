@@ -98,3 +98,87 @@ func TestGetTaskByID(t *testing.T) {
 	require.NotEmpty(t, task2)
 	require.Equal(t, task1, task2)
 }
+
+func TestUpdateTaskOnlyName(t *testing.T) {
+	oldTask := createRandomTask(t)
+	newName := util.RandomPrintableString(100)
+
+	updatedTask, err := testStore.UpdateTask(context.Background(), UpdateTaskParams{
+		ID: oldTask.ID,
+		Name: pgtype.Text{
+			String: newName,
+			Valid:  true,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, oldTask.Name, updatedTask.Name)
+	require.Equal(t, newName, updatedTask.Name)
+	require.Equal(t, oldTask.Deadline, updatedTask.Deadline)
+	require.Equal(t, oldTask.Completed, updatedTask.Completed)
+}
+
+func TestUpdateTaskOnlyDeadline(t *testing.T) {
+	oldTask := createRandomTask(t)
+	newDeadline := time.Now().Add(2 * time.Hour)
+
+	updatedTask, err := testStore.UpdateTask(context.Background(), UpdateTaskParams{
+		ID: oldTask.ID,
+		Deadline: pgtype.Timestamptz{
+			Time:  newDeadline,
+			Valid: true,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, oldTask.Deadline, updatedTask.Deadline)
+	require.WithinDuration(t, newDeadline, updatedTask.Deadline, time.Second)
+	require.Equal(t, oldTask.Name, updatedTask.Name)
+	require.Equal(t, oldTask.Completed, updatedTask.Completed)
+}
+
+func TestUpdateTaskOnlyStatus(t *testing.T) {
+	oldTask := createRandomTask(t)
+	newStatus := !oldTask.Completed
+
+	updatedTask, err := testStore.UpdateTask(context.Background(), UpdateTaskParams{
+		ID: oldTask.ID,
+		Completed: pgtype.Bool{
+			Bool:  newStatus,
+			Valid: true,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, oldTask.Completed, updatedTask.Completed)
+	require.Equal(t, newStatus, updatedTask.Completed)
+	require.Equal(t, oldTask.Name, updatedTask.Name)
+	require.Equal(t, oldTask.Deadline, updatedTask.Deadline)
+}
+
+func TestUpdateTaskAllFields(t *testing.T) {
+	oldTask := createRandomTask(t)
+	newName := util.RandomPrintableString(100)
+	newDeadline := time.Now().Add(2 * time.Hour)
+	newStatus := !oldTask.Completed
+
+	updatedTask, err := testStore.UpdateTask(context.Background(), UpdateTaskParams{
+		ID: oldTask.ID,
+		Name: pgtype.Text{
+			String: newName,
+			Valid:  true,
+		},
+		Deadline: pgtype.Timestamptz{
+			Time:  newDeadline,
+			Valid: true,
+		},
+		Completed: pgtype.Bool{
+			Bool:  newStatus,
+			Valid: true,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, oldTask.Name, updatedTask.Name)
+	require.NotEqual(t, oldTask.Deadline, updatedTask.Deadline)
+	require.NotEqual(t, oldTask.Completed, updatedTask.Completed)
+	require.Equal(t, newName, updatedTask.Name)
+	require.WithinDuration(t, newDeadline, updatedTask.Deadline, time.Second)
+	require.Equal(t, newStatus, updatedTask.Completed)
+}

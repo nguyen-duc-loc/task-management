@@ -14,6 +14,7 @@ type Querier interface {
 	GetTaskByID(ctx context.Context, id string) (Task, error)
 	GetTasks(ctx context.Context, arg GetTasksParams) ([]Task, error)
 	GetUser(ctx context.Context, username string) (User, error)
+	UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, error)
 }
 
 var _ Querier = (*Queries)(nil)

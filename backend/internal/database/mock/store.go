@@ -129,3 +129,18 @@ func (mr *MockStorageMockRecorder) Health() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Health", reflect.TypeOf((*MockStorage)(nil).Health))
 }
+
+// UpdateTask mocks base method.
+func (m *MockStorage) UpdateTask(ctx context.Context, arg store.UpdateTaskParams) (store.Task, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateTask", ctx, arg)
+	ret0, _ := ret[0].(store.Task)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateTask indicates an expected call of UpdateTask.
+func (mr *MockStorageMockRecorder) UpdateTask(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTask", reflect.TypeOf((*MockStorage)(nil).UpdateTask), ctx, arg)
+}
