@@ -101,10 +101,10 @@ func (mr *MockStorageMockRecorder) GetTaskByID(ctx, id any) *gomock.Call {
 }
 
 // GetTasks mocks base method.
-func (m *MockStorage) GetTasks(ctx context.Context, arg store.GetTasksParams) ([]store.Task, error) {
+func (m *MockStorage) GetTasks(ctx context.Context, arg store.GetTasksParams) ([]store.GetTasksRow, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTasks", ctx, arg)
-	ret0, _ := ret[0].([]store.Task)
+	ret0, _ := ret[0].([]store.GetTasksRow)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

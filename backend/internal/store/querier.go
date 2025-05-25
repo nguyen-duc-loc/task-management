@@ -13,7 +13,7 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteTask(ctx context.Context, id string) error
 	GetTaskByID(ctx context.Context, id string) (Task, error)
-	GetTasks(ctx context.Context, arg GetTasksParams) ([]Task, error)
+	GetTasks(ctx context.Context, arg GetTasksParams) ([]GetTasksRow, error)
 	GetUser(ctx context.Context, username string) (User, error)
 	UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, error)
 }

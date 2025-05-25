@@ -13,8 +13,9 @@ import (
 )
 
 type createTaskRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Deadline string `json:"deadline" binding:"required,iso8601"`
+	Title       string `json:"title" binding:"required"`
+	Description string `json:"description" binding:"omitempty"`
+	Deadline    string `json:"deadline" binding:"required,iso8601"`
 }
 
 func (s *Server) createTaskHandler(ctx *gin.Context) {
@@ -35,8 +36,14 @@ func (s *Server) createTaskHandler(ctx *gin.Context) {
 	arg := store.CreateTaskParams{
 		ID:        id,
 		CreatorID: authPayload.UserID,
-		Name:      req.Name,
+		Title:     req.Title,
 		Deadline:  deadline,
+	}
+	if len(req.Description) > 0 {
+		arg.Description = pgtype.Text{
+			String: req.Description,
+			Valid:  true,
+		}
 	}
 
 	task, err := s.storage.CreateTask(ctx, arg)
@@ -49,12 +56,28 @@ func (s *Server) createTaskHandler(ctx *gin.Context) {
 }
 
 type getTasksRequest struct {
-	Name          string `form:"name" binding:"omitempty"`
+	Title         string `form:"title" binding:"omitempty"`
+	Description   string `form:"description" binding:"omitempty"`
 	StartDeadline string `form:"start_deadline" binding:"omitempty,iso8601"`
 	EndDeadline   string `form:"end_deadline" binding:"omitempty,iso8601"`
 	Completed     *bool  `form:"completed" binding:"omitempty"`
 	Page          int32  `form:"page" binding:"omitempty,min=1"`
 	Limit         int32  `form:"limit" binding:"omitempty,min=1,max=20"`
+}
+
+type GetTaskRow struct {
+	ID          string      `json:"id"`
+	Title       string      `json:"title"`
+	Description pgtype.Text `json:"description"`
+	CreatorID   int64       `json:"creator_id"`
+	Deadline    time.Time   `json:"deadline"`
+	Completed   bool        `json:"completed"`
+	CreatedAt   time.Time   `json:"created_at"`
+}
+
+type getTasksResponse struct {
+	Total int64        `json:"total"`
+	Data  []GetTaskRow `json:"data"`
 }
 
 func (s *Server) getTasksHandler(ctx *gin.Context) {
@@ -71,9 +94,16 @@ func (s *Server) getTasksHandler(ctx *gin.Context) {
 		Offset:    (req.Page - 1) * req.Limit,
 	}
 
-	if len(req.Name) > 0 {
-		arg.Name = pgtype.Text{
-			String: req.Name,
+	if len(req.Title) > 0 {
+		arg.Title = pgtype.Text{
+			String: req.Title,
+			Valid:  true,
+		}
+	}
+
+	if len(req.Description) > 0 {
+		arg.Description = pgtype.Text{
+			String: req.Description,
 			Valid:  true,
 		}
 	}
@@ -115,7 +145,32 @@ func (s *Server) getTasksHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, tasks)
+	var rsp getTasksResponse
+
+	if len(tasks) == 0 {
+		rsp = getTasksResponse{
+			Total: 0,
+			Data:  []GetTaskRow{},
+		}
+	} else {
+		rsp = getTasksResponse{
+			Total: tasks[0].Total,
+			Data:  []GetTaskRow{},
+		}
+		for _, task := range tasks {
+			rsp.Data = append(rsp.Data, GetTaskRow{
+				ID:          task.ID,
+				Title:       task.Title,
+				Description: task.Description,
+				CreatorID:   task.CreatorID,
+				Deadline:    task.Deadline,
+				Completed:   task.Completed,
+				CreatedAt:   task.CreatedAt,
+			})
+		}
+	}
+
+	ctx.JSON(http.StatusOK, rsp)
 }
 
 type getTaskByIDRequest struct {
@@ -151,10 +206,11 @@ func (s *Server) getTaskByIDHandler(ctx *gin.Context) {
 }
 
 type updateTaskRequest struct {
-	ID        string `uri:"id" binding:"required"`
-	Name      string `json:"name" binding:"omitempty"`
-	Deadline  string `json:"deadline" binding:"omitempty,iso8601"`
-	Completed *bool  `json:"completed" binding:"omitempty"`
+	ID          string `uri:"id" binding:"required"`
+	Title       string `json:"title" binding:"omitempty"`
+	Description string `json:"description" binding:"omitempty"`
+	Deadline    string `json:"deadline" binding:"omitempty,iso8601"`
+	Completed   *bool  `json:"completed" binding:"omitempty"`
 }
 
 func (s *Server) updateTasksHandler(ctx *gin.Context) {
@@ -191,9 +247,16 @@ func (s *Server) updateTasksHandler(ctx *gin.Context) {
 		ID: req.ID,
 	}
 
-	if len(req.Name) > 0 {
-		arg.Name = pgtype.Text{
-			String: req.Name,
+	if len(req.Title) > 0 {
+		arg.Title = pgtype.Text{
+			String: req.Title,
+			Valid:  true,
+		}
+	}
+
+	if len(req.Description) > 0 {
+		arg.Description = pgtype.Text{
+			String: req.Description,
 			Valid:  true,
 		}
 	}

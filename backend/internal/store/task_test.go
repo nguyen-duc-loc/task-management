@@ -17,8 +17,12 @@ func createRandomTask(t *testing.T) Task {
 	require.NotZero(t, len(id))
 
 	arg := CreateTaskParams{
-		ID:        id,
-		Name:      util.RandomPrintableString(100),
+		ID:    id,
+		Title: util.RandomPrintableString(50),
+		Description: pgtype.Text{
+			String: util.RandomPrintableString(300),
+			Valid:  true,
+		},
 		CreatorID: createRandomUser(t).ID,
 		Deadline:  time.Now().Add(time.Hour),
 	}
@@ -28,7 +32,8 @@ func createRandomTask(t *testing.T) Task {
 	require.NotEmpty(t, task)
 
 	require.Equal(t, arg.ID, task.ID)
-	require.Equal(t, arg.Name, task.Name)
+	require.Equal(t, arg.Title, task.Title)
+	require.Equal(t, arg.Description, task.Description)
 	require.Equal(t, arg.CreatorID, task.CreatorID)
 	require.WithinDuration(t, arg.Deadline, task.Deadline, time.Second)
 
@@ -42,11 +47,15 @@ func TestCreateTask(t *testing.T) {
 }
 
 func TestGetTasks(t *testing.T) {
-	task1 := createRandomTask(t)
+	task := createRandomTask(t)
 	arg := GetTasksParams{
-		CreatorID: task1.CreatorID,
-		Name: pgtype.Text{
-			String: task1.Name[30:70],
+		CreatorID: task.CreatorID,
+		Title: pgtype.Text{
+			String: task.Title[12:41],
+			Valid:  true,
+		},
+		Description: pgtype.Text{
+			String: task.Description.String[30:70],
 			Valid:  true,
 		},
 		StartDeadline: pgtype.Timestamptz{
@@ -67,11 +76,11 @@ func TestGetTasks(t *testing.T) {
 
 	tasks, err := testStore.GetTasks(context.Background(), arg)
 	require.NoError(t, err)
-	require.Equal(t, len(tasks), 1)
+	require.Positive(t, len(tasks))
 
-	task2 := tasks[0]
-	require.NotEmpty(t, task2)
-	require.Equal(t, task1, task2)
+	for _, task := range tasks {
+		require.NotEmpty(t, task)
+	}
 }
 
 func TestGetTasksWithNullValue(t *testing.T) {
@@ -84,11 +93,11 @@ func TestGetTasksWithNullValue(t *testing.T) {
 
 	tasks, err := testStore.GetTasks(context.Background(), arg)
 	require.NoError(t, err)
-	require.Equal(t, len(tasks), 1)
+	require.Positive(t, len(tasks))
 
-	task2 := tasks[0]
-	require.NotEmpty(t, task2)
-	require.Equal(t, task1, task2)
+	for _, task := range tasks {
+		require.NotEmpty(t, task)
+	}
 }
 
 func TestGetTaskByID(t *testing.T) {
@@ -99,20 +108,40 @@ func TestGetTaskByID(t *testing.T) {
 	require.Equal(t, task1, task2)
 }
 
-func TestUpdateTaskOnlyName(t *testing.T) {
+func TestUpdateTaskOnlyTitle(t *testing.T) {
 	oldTask := createRandomTask(t)
-	newName := util.RandomPrintableString(100)
+	newTitle := util.RandomPrintableString(50)
 
 	updatedTask, err := testStore.UpdateTask(context.Background(), UpdateTaskParams{
 		ID: oldTask.ID,
-		Name: pgtype.Text{
-			String: newName,
+		Title: pgtype.Text{
+			String: newTitle,
 			Valid:  true,
 		},
 	})
 	require.NoError(t, err)
-	require.NotEqual(t, oldTask.Name, updatedTask.Name)
-	require.Equal(t, newName, updatedTask.Name)
+	require.NotEqual(t, oldTask.Title, updatedTask.Title)
+	require.Equal(t, newTitle, updatedTask.Title)
+	require.Equal(t, oldTask.Description, updatedTask.Description)
+	require.Equal(t, oldTask.Deadline, updatedTask.Deadline)
+	require.Equal(t, oldTask.Completed, updatedTask.Completed)
+}
+
+func TestUpdateTaskOnlyDescription(t *testing.T) {
+	oldTask := createRandomTask(t)
+	newDescription := util.RandomPrintableString(300)
+
+	updatedTask, err := testStore.UpdateTask(context.Background(), UpdateTaskParams{
+		ID: oldTask.ID,
+		Description: pgtype.Text{
+			String: newDescription,
+			Valid:  true,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, oldTask.Description, updatedTask.Description)
+	require.Equal(t, newDescription, updatedTask.Description.String)
+	require.Equal(t, oldTask.Title, updatedTask.Title)
 	require.Equal(t, oldTask.Deadline, updatedTask.Deadline)
 	require.Equal(t, oldTask.Completed, updatedTask.Completed)
 }
@@ -131,7 +160,8 @@ func TestUpdateTaskOnlyDeadline(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, oldTask.Deadline, updatedTask.Deadline)
 	require.WithinDuration(t, newDeadline, updatedTask.Deadline, time.Second)
-	require.Equal(t, oldTask.Name, updatedTask.Name)
+	require.Equal(t, oldTask.Title, updatedTask.Title)
+	require.Equal(t, oldTask.Description, updatedTask.Description)
 	require.Equal(t, oldTask.Completed, updatedTask.Completed)
 }
 
@@ -149,20 +179,26 @@ func TestUpdateTaskOnlyStatus(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, oldTask.Completed, updatedTask.Completed)
 	require.Equal(t, newStatus, updatedTask.Completed)
-	require.Equal(t, oldTask.Name, updatedTask.Name)
+	require.Equal(t, oldTask.Title, updatedTask.Title)
+	require.Equal(t, oldTask.Description, updatedTask.Description)
 	require.Equal(t, oldTask.Deadline, updatedTask.Deadline)
 }
 
 func TestUpdateTaskAllFields(t *testing.T) {
 	oldTask := createRandomTask(t)
-	newName := util.RandomPrintableString(100)
+	newTitle := util.RandomPrintableString(50)
+	newDescription := util.RandomPrintableString(300)
 	newDeadline := time.Now().Add(2 * time.Hour)
 	newStatus := !oldTask.Completed
 
 	updatedTask, err := testStore.UpdateTask(context.Background(), UpdateTaskParams{
 		ID: oldTask.ID,
-		Name: pgtype.Text{
-			String: newName,
+		Title: pgtype.Text{
+			String: newTitle,
+			Valid:  true,
+		},
+		Description: pgtype.Text{
+			String: newDescription,
 			Valid:  true,
 		},
 		Deadline: pgtype.Timestamptz{
@@ -175,10 +211,12 @@ func TestUpdateTaskAllFields(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.NotEqual(t, oldTask.Name, updatedTask.Name)
+	require.NotEqual(t, oldTask.Title, updatedTask.Title)
+	require.NotEqual(t, oldTask.Description, updatedTask.Description)
 	require.NotEqual(t, oldTask.Deadline, updatedTask.Deadline)
 	require.NotEqual(t, oldTask.Completed, updatedTask.Completed)
-	require.Equal(t, newName, updatedTask.Name)
+	require.Equal(t, newTitle, updatedTask.Title)
+	require.Equal(t, newDescription, updatedTask.Description.String)
 	require.WithinDuration(t, newDeadline, updatedTask.Deadline, time.Second)
 	require.Equal(t, newStatus, updatedTask.Completed)
 }

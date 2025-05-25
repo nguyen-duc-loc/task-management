@@ -6,15 +6,18 @@ package store
 
 import (
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Task struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatorID int64     `json:"creator_id"`
-	Deadline  time.Time `json:"deadline"`
-	Completed bool      `json:"completed"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string      `json:"id"`
+	Title       string      `json:"title"`
+	Description pgtype.Text `json:"description"`
+	CreatorID   int64       `json:"creator_id"`
+	Deadline    time.Time   `json:"deadline"`
+	Completed   bool        `json:"completed"`
+	CreatedAt   time.Time   `json:"created_at"`
 }
 
 type User struct {

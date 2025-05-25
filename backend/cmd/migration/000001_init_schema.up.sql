@@ -7,7 +7,8 @@ CREATE TABLE "users" (
 
 CREATE TABLE "tasks" (
   "id" varchar PRIMARY KEY,
-  "name" varchar NOT NULL,
+  "title" varchar NOT NULL,
+  "description" varchar,
   "creator_id" bigint NOT NULL,
   "deadline" timestamptz NOT NULL,
   "completed" bool NOT NULL DEFAULT false,

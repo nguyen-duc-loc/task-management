@@ -2,17 +2,25 @@
 INSERT INTO tasks (
   id,
   creator_id,
-  name,
+  title,
+  description,
   deadline
 ) VALUES (
-  $1, $2, $3, $4
+  $1, $2, $3, $4, $5
 ) RETURNING *;
 
 -- name: GetTasks :many
-SELECT * FROM tasks
+SELECT 
+  *,
+  COUNT(*) OVER() AS total
+FROM tasks
 WHERE 
   creator_id = $1
-  AND (name ILIKE '%' || COALESCE(sqlc.arg('name'), '') || '%')
+  AND (
+    title ILIKE '%' || COALESCE(sqlc.arg('title'), '') || '%'
+    OR 
+    description ILIKE '%' || COALESCE(sqlc.arg('description'), '') || '%'
+  )
   AND (
     sqlc.narg('start_deadline')::timestamptz IS NULL
     OR deadline >= sqlc.narg('start_deadline')
@@ -35,7 +43,8 @@ WHERE id = $1 LIMIT 1;
 -- name: UpdateTask :one
 UPDATE tasks
 SET
-  name = COALESCE(sqlc.narg(name), name),
+  title = COALESCE(sqlc.narg(title), title),
+  description = COALESCE(sqlc.narg(description), description),
   deadline = COALESCE(sqlc.narg(deadline), deadline),
   completed = COALESCE(sqlc.narg(completed), completed)
 WHERE

@@ -30,8 +30,12 @@ func randomTask(t *testing.T, creatorID int64) store.Task {
 	return store.Task{
 		ID:        id,
 		CreatorID: creatorID,
-		Name:      util.RandomPrintableString(100),
-		Deadline:  time.Now().Add(time.Hour),
+		Title:     util.RandomPrintableString(50),
+		Description: pgtype.Text{
+			String: util.RandomPrintableString(300),
+			Valid:  true,
+		},
+		Deadline: time.Now().Add(time.Hour),
 	}
 }
 
@@ -45,7 +49,11 @@ func (e eqCreateTaskParamsMatcher) Matches(x interface{}) bool {
 		return false
 	}
 
-	if e.arg.Name != arg.Name {
+	if e.arg.Title != arg.Title {
+		return false
+	}
+
+	if e.arg.Description != arg.Description {
 		return false
 	}
 
@@ -82,7 +90,8 @@ func requireBodyMatchTask(t *testing.T, body *bytes.Buffer, task store.Task) {
 	require.NoError(t, err)
 	require.Equal(t, gotTask.ID, task.ID)
 	require.Equal(t, gotTask.CreatorID, task.CreatorID)
-	require.Equal(t, gotTask.Name, task.Name)
+	require.Equal(t, gotTask.Title, task.Title)
+	require.Equal(t, gotTask.Description, task.Description)
 	require.WithinDuration(t, gotTask.Deadline, task.Deadline, time.Second)
 }
 
@@ -100,7 +109,35 @@ func TestCreateTaskHandler(t *testing.T) {
 		{
 			name: "OK",
 			body: gin.H{
-				"name":     task.Name,
+				"title":       task.Title,
+				"description": task.Description.String,
+				"deadline":    task.Deadline,
+			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				arg := store.CreateTaskParams{
+					ID:          task.ID,
+					CreatorID:   task.CreatorID,
+					Title:       task.Title,
+					Description: task.Description,
+					Deadline:    task.Deadline,
+				}
+				storage.EXPECT().
+					CreateTask(gomock.Any(), EqCreateTaskParams(arg)).
+					Times(1).
+					Return(task, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusCreated, recorder.Code)
+				requireBodyMatchTask(t, recorder.Body, task)
+			},
+		},
+		{
+			name: "No description",
+			body: gin.H{
+				"title":    task.Title,
 				"deadline": task.Deadline,
 			},
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
@@ -110,7 +147,7 @@ func TestCreateTaskHandler(t *testing.T) {
 				arg := store.CreateTaskParams{
 					ID:        task.ID,
 					CreatorID: task.CreatorID,
-					Name:      task.Name,
+					Title:     task.Title,
 					Deadline:  task.Deadline,
 				}
 				storage.EXPECT().
@@ -126,7 +163,7 @@ func TestCreateTaskHandler(t *testing.T) {
 		{
 			name: "UnauthorizedUser",
 			body: gin.H{
-				"name":     task.Name,
+				"title":    task.Title,
 				"deadline": task.Deadline,
 			},
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
@@ -143,7 +180,7 @@ func TestCreateTaskHandler(t *testing.T) {
 		{
 			name: "InternalError",
 			body: gin.H{
-				"name":     task.Name,
+				"title":    task.Title,
 				"deadline": task.Deadline,
 			},
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
@@ -162,7 +199,7 @@ func TestCreateTaskHandler(t *testing.T) {
 		{
 			name: "InvalidDeadline",
 			body: gin.H{
-				"name":     task.Name,
+				"title":    task.Title,
 				"deadline": "invalidDeadline",
 			},
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
@@ -220,7 +257,11 @@ func (e eqGetTasksParamsMatcher) Matches(x interface{}) bool {
 		return false
 	}
 
-	if arg.Name.String != e.arg.Name.String {
+	if arg.Title.String != e.arg.Title.String {
+		return false
+	}
+
+	if arg.Description.String != e.arg.Description.String {
 		return false
 	}
 
@@ -255,18 +296,21 @@ func EqGetTasksParams(arg store.GetTasksParams) gomock.Matcher {
 	return eqGetTasksParamsMatcher{arg}
 }
 
-func requireBodyMatchTasks(t *testing.T, body *bytes.Buffer, tasks []store.Task) {
+func requireBodyMatchTasks(t *testing.T, body *bytes.Buffer, tasks []store.GetTasksRow) {
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
-	var gotTasks []store.Task
-	err = json.Unmarshal(data, &gotTasks)
+	var rsp getTasksResponse
+	err = json.Unmarshal(data, &rsp)
 	require.NoError(t, err)
+	gotTasks := rsp.Data
+	require.Equal(t, len(tasks), int(rsp.Total))
 	require.Equal(t, len(tasks), len(gotTasks))
 
 	for i := range tasks {
 		require.Equal(t, tasks[i].ID, gotTasks[i].ID)
-		require.Equal(t, tasks[i].Name, gotTasks[i].Name)
+		require.Equal(t, tasks[i].Title, gotTasks[i].Title)
+		require.Equal(t, tasks[i].Description, gotTasks[i].Description)
 		require.Equal(t, tasks[i].CreatorID, gotTasks[i].CreatorID)
 		require.Equal(t, tasks[i].Completed, gotTasks[i].Completed)
 		require.WithinDuration(t, tasks[i].Deadline, gotTasks[i].Deadline, time.Second)
@@ -277,14 +321,23 @@ func requireBodyMatchTasks(t *testing.T, body *bytes.Buffer, tasks []store.Task)
 func TestGetTasksHandler(t *testing.T) {
 	user, _ := randomUser(t)
 
-	n := 10
-	tasks := make([]store.Task, n)
-	for i := 0; i < n; i++ {
-		tasks[i] = randomTask(t, user.ID)
+	var n int64 = 10
+	tasks := make([]store.GetTasksRow, n)
+	for i := range n {
+		rt := randomTask(t, user.ID)
+		tasks[i].ID = rt.ID
+		tasks[i].Title = rt.Title
+		tasks[i].Description = rt.Description
+		tasks[i].CreatorID = rt.CreatorID
+		tasks[i].Deadline = rt.Deadline
+		tasks[i].Completed = rt.Completed
+		tasks[i].CreatedAt = rt.CreatedAt
+		tasks[i].Total = n
 	}
 
 	type Query struct {
-		Name          string
+		Title         string
+		Description   string
 		StartDeadline string
 		EndDeadline   string
 		Completed     *bool
@@ -309,7 +362,8 @@ func TestGetTasksHandler(t *testing.T) {
 			query: Query{
 				Page:          page,
 				Limit:         limit,
-				Name:          "",
+				Title:         "",
+				Description:   "",
 				StartDeadline: time.Now().Add(-time.Hour).Format(time.RFC3339),
 				EndDeadline:   time.Now().Add(time.Hour).Format(time.RFC3339),
 				Completed:     incomplete,
@@ -322,7 +376,11 @@ func TestGetTasksHandler(t *testing.T) {
 					CreatorID: user.ID,
 					Limit:     int32(n),
 					Offset:    0,
-					Name: pgtype.Text{
+					Title: pgtype.Text{
+						String: "",
+						Valid:  true,
+					},
+					Description: pgtype.Text{
 						String: "",
 						Valid:  true,
 					},
@@ -395,7 +453,7 @@ func TestGetTasksHandler(t *testing.T) {
 				storage.EXPECT().
 					GetTasks(gomock.Any(), gomock.Any()).
 					Times(1).
-					Return([]store.Task{}, sql.ErrConnDone)
+					Return([]store.GetTasksRow{}, sql.ErrConnDone)
 			},
 			checkResponse: func(recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
@@ -439,8 +497,12 @@ func TestGetTasksHandler(t *testing.T) {
 
 			q := request.URL.Query()
 
-			if len(tc.query.Name) > 0 {
-				q.Add("name", tc.query.Name)
+			if len(tc.query.Title) > 0 {
+				q.Add("title", tc.query.Title)
+			}
+
+			if len(tc.query.Description) > 0 {
+				q.Add("description", tc.query.Description)
 			}
 
 			if len(tc.query.StartDeadline) > 0 {
@@ -592,7 +654,11 @@ func (e eqUpdateTaskParamsMatcher) Matches(x interface{}) bool {
 		return false
 	}
 
-	if e.arg.Name != arg.Name {
+	if e.arg.Title != arg.Title {
+		return false
+	}
+
+	if e.arg.Description != arg.Description {
 		return false
 	}
 
@@ -618,7 +684,8 @@ func EqUpdateTaskParams(arg store.UpdateTaskParams) gomock.Matcher {
 func TestUpdateHandler(t *testing.T) {
 	user, _ := randomUser(t)
 	task := randomTask(t, user.ID)
-	newName := util.RandomPrintableString(100)
+	newTitle := util.RandomPrintableString(50)
+	newDescription := util.RandomPrintableString(300)
 	newDeadline := time.Now().Add(2 * time.Hour)
 	newCompleted := !task.Completed
 
@@ -632,9 +699,10 @@ func TestUpdateHandler(t *testing.T) {
 		{
 			name: "UpdateAllFields",
 			body: gin.H{
-				"name":      newName,
-				"deadline":  newDeadline.Format(time.RFC3339),
-				"completed": newCompleted,
+				"title":       newTitle,
+				"description": newDescription,
+				"deadline":    newDeadline.Format(time.RFC3339),
+				"completed":   newCompleted,
 			},
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
 				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
@@ -648,17 +716,22 @@ func TestUpdateHandler(t *testing.T) {
 				newTask := store.Task{
 					ID:        task.ID,
 					CreatorID: task.CreatorID,
-					Name:      newName,
+					Title:     newTitle,
+					Description: pgtype.Text{
+						String: newDescription,
+						Valid:  true,
+					},
 					Deadline:  newDeadline,
 					Completed: newCompleted,
 				}
 
 				arg := store.UpdateTaskParams{
 					ID: task.ID,
-					Name: pgtype.Text{
-						String: newTask.Name,
+					Title: pgtype.Text{
+						String: newTask.Title,
 						Valid:  true,
 					},
+					Description: newTask.Description,
 					Deadline: pgtype.Timestamptz{
 						Time:  newTask.Deadline,
 						Valid: true,
@@ -679,7 +752,11 @@ func TestUpdateHandler(t *testing.T) {
 				requireBodyMatchTask(t, recorder.Body, store.Task{
 					ID:        task.ID,
 					CreatorID: task.CreatorID,
-					Name:      newName,
+					Title:     newTitle,
+					Description: pgtype.Text{
+						String: newDescription,
+						Valid:  true,
+					},
 					Deadline:  newDeadline,
 					Completed: newCompleted,
 					CreatedAt: task.CreatedAt,
@@ -701,11 +778,12 @@ func TestUpdateHandler(t *testing.T) {
 					Return(task, nil)
 
 				newTask := store.Task{
-					ID:        task.ID,
-					CreatorID: task.CreatorID,
-					Name:      task.Name,
-					Deadline:  newDeadline,
-					Completed: task.Completed,
+					ID:          task.ID,
+					CreatorID:   task.CreatorID,
+					Title:       task.Title,
+					Description: task.Description,
+					Deadline:    newDeadline,
+					Completed:   task.Completed,
 				}
 
 				arg := store.UpdateTaskParams{
@@ -724,19 +802,69 @@ func TestUpdateHandler(t *testing.T) {
 			checkResponse: func(recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 				requireBodyMatchTask(t, recorder.Body, store.Task{
-					ID:        task.ID,
-					CreatorID: task.CreatorID,
-					Name:      task.Name,
-					Deadline:  newDeadline,
-					Completed: task.Completed,
-					CreatedAt: task.CreatedAt,
+					ID:          task.ID,
+					CreatorID:   task.CreatorID,
+					Title:       task.Title,
+					Description: task.Description,
+					Deadline:    newDeadline,
+					Completed:   task.Completed,
+					CreatedAt:   task.CreatedAt,
 				})
 			},
 		},
 		{
-			name: "UpdateOnlyName",
+			name: "UpdateOnlyTitle",
 			body: gin.H{
-				"name": newName,
+				"title": newTitle,
+			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
+			},
+			buildStubs: func(storage *mockdb.MockStorage) {
+				storage.EXPECT().
+					GetTaskByID(gomock.Any(), gomock.Eq(task.ID)).
+					Times(1).
+					Return(task, nil)
+
+				newTask := store.Task{
+					ID:          task.ID,
+					CreatorID:   task.CreatorID,
+					Title:       newTitle,
+					Description: task.Description,
+					Deadline:    task.Deadline,
+					Completed:   task.Completed,
+				}
+
+				arg := store.UpdateTaskParams{
+					ID: task.ID,
+					Title: pgtype.Text{
+						String: newTask.Title,
+						Valid:  true,
+					},
+				}
+
+				storage.EXPECT().
+					UpdateTask(gomock.Any(), EqUpdateTaskParams(arg)).
+					Times(1).
+					Return(newTask, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+				requireBodyMatchTask(t, recorder.Body, store.Task{
+					ID:          task.ID,
+					CreatorID:   task.CreatorID,
+					Title:       newTitle,
+					Description: task.Description,
+					Deadline:    task.Deadline,
+					Completed:   task.Completed,
+					CreatedAt:   task.CreatedAt,
+				})
+			},
+		},
+		{
+			name: "UpdateOnlyDescription",
+			body: gin.H{
+				"description": newDescription,
 			},
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
 				addAuthorization(t, request, tokenMaker, authorizationTypeBearer, user.ID, user.Username, time.Minute)
@@ -750,17 +878,18 @@ func TestUpdateHandler(t *testing.T) {
 				newTask := store.Task{
 					ID:        task.ID,
 					CreatorID: task.CreatorID,
-					Name:      newName,
+					Title:     task.Title,
+					Description: pgtype.Text{
+						String: newDescription,
+						Valid:  true,
+					},
 					Deadline:  task.Deadline,
 					Completed: task.Completed,
 				}
 
 				arg := store.UpdateTaskParams{
-					ID: task.ID,
-					Name: pgtype.Text{
-						String: newTask.Name,
-						Valid:  true,
-					},
+					ID:          task.ID,
+					Description: newTask.Description,
 				}
 
 				storage.EXPECT().
@@ -773,7 +902,11 @@ func TestUpdateHandler(t *testing.T) {
 				requireBodyMatchTask(t, recorder.Body, store.Task{
 					ID:        task.ID,
 					CreatorID: task.CreatorID,
-					Name:      newName,
+					Title:     task.Title,
+					Description: pgtype.Text{
+						String: newDescription,
+						Valid:  true,
+					},
 					Deadline:  task.Deadline,
 					Completed: task.Completed,
 					CreatedAt: task.CreatedAt,
@@ -795,11 +928,12 @@ func TestUpdateHandler(t *testing.T) {
 					Return(task, nil)
 
 				newTask := store.Task{
-					ID:        task.ID,
-					CreatorID: task.CreatorID,
-					Name:      task.Name,
-					Deadline:  task.Deadline,
-					Completed: newCompleted,
+					ID:          task.ID,
+					CreatorID:   task.CreatorID,
+					Title:       task.Title,
+					Description: task.Description,
+					Deadline:    task.Deadline,
+					Completed:   newCompleted,
 				}
 
 				arg := store.UpdateTaskParams{
@@ -818,12 +952,13 @@ func TestUpdateHandler(t *testing.T) {
 			checkResponse: func(recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 				requireBodyMatchTask(t, recorder.Body, store.Task{
-					ID:        task.ID,
-					CreatorID: task.CreatorID,
-					Name:      task.Name,
-					Deadline:  task.Deadline,
-					Completed: newCompleted,
-					CreatedAt: task.CreatedAt,
+					ID:          task.ID,
+					CreatorID:   task.CreatorID,
+					Title:       task.Title,
+					Description: task.Description,
+					Deadline:    task.Deadline,
+					Completed:   newCompleted,
+					CreatedAt:   task.CreatedAt,
 				})
 			},
 		},
