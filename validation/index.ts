@@ -21,3 +21,12 @@ export const SignupSchema = SigninSchema.extend({
   message: "Passwords do not match",
 });
 export type SignupData = z.infer<typeof SignupSchema>;
+
+export const TaskSchema = z.object({
+  title: z.string().min(1, { message: "Title is required." }),
+
+  description: z.string(),
+
+  deadline: z.date(),
+});
+export type TaskData = z.infer<typeof TaskSchema>;

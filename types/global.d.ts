@@ -17,3 +17,15 @@ type SigninResponseData = {
   access_token_expire_at: string;
   user: User;
 };
+
+type TaskModel = {
+  id: string;
+  title: string;
+  description?: string;
+  creator_id: number;
+  deadline: string;
+  completed: boolean;
+  created_at: string;
+};
+type Task = TaskModel;
+type CreateTaskResponseData = Task;

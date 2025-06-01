@@ -7,7 +7,7 @@ import ROUTES from "@/constants/routes";
 import { SigninData, SignupData } from "@/validation";
 import { AUTH_TOKEN_KEY } from "@/lib/cookies";
 import { API_BASE_URL } from "@/lib/url";
-import { fetchHandler } from "./fetch";
+import { fetchHandler } from "../fetch";
 
 export const signup = async (data: SignupData) => {
   const response = await fetchHandler(`${API_BASE_URL}/users`, {
