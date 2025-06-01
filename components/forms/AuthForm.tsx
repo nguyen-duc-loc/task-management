@@ -53,14 +53,11 @@ const AuthForm = <T extends FieldValues>({
     defaultValues: defaultValues as DefaultValues<T>,
   });
 
-  const text = formType === "SIGN_IN" ? "Sign up" : "Sign in";
-
   const handleSubmit = async (data: T) => {
     const response = await onSubmit(data);
     if (!response.success) {
       toast.error(response.error);
     } else {
-      toast.success(`${text} successfully`);
       form.reset();
     }
   };
@@ -114,7 +111,7 @@ const AuthForm = <T extends FieldValues>({
           <CardFooter className="flex-col gap-4">
             <Button className="w-full" type="submit" disabled={isSubmitting}>
               {isSubmitting && <Spinner />}
-              {text}
+              {formType === "SIGN_IN" ? "Sign in" : "Sign up"}
             </Button>
             <p className="flex flex-wrap items-center gap-1 text-sm">
               {formType === "SIGN_IN" ? "Don't" : "Already"} have an account?{" "}
@@ -122,7 +119,7 @@ const AuthForm = <T extends FieldValues>({
                 href={formType === "SIGN_IN" ? ROUTES.signup : ROUTES.signin}
                 className="flex p-0 font-bold text-primary items-center"
               >
-                {text} now
+                {formType === "SIGN_IN" ? "Sign up" : "Sign in"} now
                 <IconArrowNarrowRight />
               </Link>
             </p>
