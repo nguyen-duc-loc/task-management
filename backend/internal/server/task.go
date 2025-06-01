@@ -52,7 +52,7 @@ func (s *Server) createTaskHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, task)
+	ctx.JSON(http.StatusCreated, successResponse(task))
 }
 
 type getTasksRequest struct {
@@ -170,7 +170,7 @@ func (s *Server) getTasksHandler(ctx *gin.Context) {
 		}
 	}
 
-	ctx.JSON(http.StatusOK, rsp)
+	ctx.JSON(http.StatusOK, successResponse(rsp))
 }
 
 type getTaskByIDRequest struct {
@@ -202,7 +202,7 @@ func (s *Server) getTaskByIDHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, task)
+	ctx.JSON(http.StatusOK, successResponse(task))
 }
 
 type updateTaskRequest struct {
@@ -282,7 +282,7 @@ func (s *Server) updateTasksHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, newTask)
+	ctx.JSON(http.StatusOK, successResponse(newTask))
 }
 
 type deleteTaskRequest struct {
@@ -320,5 +320,5 @@ func (s *Server) deleteTaskHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusNoContent, nil)
+	ctx.JSON(http.StatusOK, successResponse(nil))
 }

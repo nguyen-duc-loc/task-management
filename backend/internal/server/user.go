@@ -10,6 +10,11 @@ import (
 	"github.com/nguyen-duc-loc/task-management/backend/util"
 )
 
+var (
+	errUsernameConflict   = errors.New("username already exists")
+	errInvalidCredentials = errors.New("invalid credentials")
+)
+
 type createUserRequest struct {
 	Username string `json:"username" binding:"required,alphanum"`
 	Password string `json:"password" binding:"required,min=6"`
@@ -50,14 +55,14 @@ func (s *Server) createUserHandler(ctx *gin.Context) {
 	user, err := s.storage.CreateUser(ctx, arg)
 	if err != nil {
 		if store.ErrorCode(err) == store.UniqueViolation {
-			ctx.JSON(http.StatusConflict, errorResponse(err))
+			ctx.JSON(http.StatusConflict, errorResponse(errUsernameConflict))
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, newUserResponse(user))
+	ctx.JSON(http.StatusOK, successResponse(newUserResponse(user)))
 }
 
 type loginUserRequest struct {
@@ -81,7 +86,7 @@ func (s *Server) loginUserHandler(ctx *gin.Context) {
 	user, err := s.storage.GetUser(ctx, req.Username)
 	if err != nil {
 		if errors.Is(err, store.ErrRecordNotFound) {
-			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			ctx.JSON(http.StatusUnauthorized, errorResponse(errInvalidCredentials))
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
@@ -90,7 +95,7 @@ func (s *Server) loginUserHandler(ctx *gin.Context) {
 
 	err = util.CheckPassword(req.Password, user.HashedPassword)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
+		ctx.JSON(http.StatusUnauthorized, errorResponse(errInvalidCredentials))
 		return
 	}
 
@@ -110,9 +115,9 @@ func (s *Server) loginUserHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, loginResponse{
+	ctx.JSON(http.StatusOK, successResponse(loginResponse{
 		AccessToken:         accessToken,
 		AccessTokenExpireAt: accessPayload.ExpireAt,
 		User:                newUserResponse(user),
-	})
+	}))
 }
