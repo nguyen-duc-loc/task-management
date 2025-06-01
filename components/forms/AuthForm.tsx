@@ -56,7 +56,9 @@ const AuthForm = <T extends FieldValues>({
   const handleSubmit = async (data: T) => {
     const response = await onSubmit(data);
     if (!response.success) {
-      toast.error(response.error);
+      toast.error(
+        `${response.error?.[0].toUpperCase()}${response.error?.slice(1)}`
+      );
     } else {
       form.reset();
     }
