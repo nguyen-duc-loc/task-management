@@ -206,11 +206,11 @@ func (s *Server) getTaskByIDHandler(ctx *gin.Context) {
 }
 
 type updateTaskRequest struct {
-	ID          string `uri:"id" binding:"required"`
-	Title       string `json:"title" binding:"omitempty"`
-	Description string `json:"description" binding:"omitempty"`
-	Deadline    string `json:"deadline" binding:"omitempty,iso8601"`
-	Completed   *bool  `json:"completed" binding:"omitempty"`
+	ID          string  `uri:"id" binding:"required"`
+	Title       string  `json:"title" binding:"omitempty"`
+	Description *string `json:"description" binding:"omitempty"`
+	Deadline    string  `json:"deadline" binding:"omitempty,iso8601"`
+	Completed   *bool   `json:"completed" binding:"omitempty"`
 }
 
 func (s *Server) updateTasksHandler(ctx *gin.Context) {
@@ -254,9 +254,9 @@ func (s *Server) updateTasksHandler(ctx *gin.Context) {
 		}
 	}
 
-	if len(req.Description) > 0 {
+	if req.Description != nil {
 		arg.Description = pgtype.Text{
-			String: req.Description,
+			String: *req.Description,
 			Valid:  true,
 		}
 	}
