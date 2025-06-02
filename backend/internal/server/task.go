@@ -77,7 +77,7 @@ type GetTaskRow struct {
 
 type getTasksResponse struct {
 	Total int64        `json:"total"`
-	Data  []GetTaskRow `json:"data"`
+	Tasks []GetTaskRow `json:"tasks"`
 }
 
 func (s *Server) getTasksHandler(ctx *gin.Context) {
@@ -150,15 +150,15 @@ func (s *Server) getTasksHandler(ctx *gin.Context) {
 	if len(tasks) == 0 {
 		rsp = getTasksResponse{
 			Total: 0,
-			Data:  []GetTaskRow{},
+			Tasks: []GetTaskRow{},
 		}
 	} else {
 		rsp = getTasksResponse{
 			Total: tasks[0].Total,
-			Data:  []GetTaskRow{},
+			Tasks: []GetTaskRow{},
 		}
 		for _, task := range tasks {
-			rsp.Data = append(rsp.Data, GetTaskRow{
+			rsp.Tasks = append(rsp.Tasks, GetTaskRow{
 				ID:          task.ID,
 				Title:       task.Title,
 				Description: task.Description,

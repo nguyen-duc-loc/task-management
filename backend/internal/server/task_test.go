@@ -84,10 +84,14 @@ func requireBodyMatchTask(t *testing.T, body *bytes.Buffer, task store.Task) {
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
-	var gotTask store.Task
-	err = json.Unmarshal(data, &gotTask)
-
+	var response struct {
+		Data    store.Task `json:"data"`
+		Success bool       `json:"success"`
+	}
+	err = json.Unmarshal(data, &response)
 	require.NoError(t, err)
+
+	gotTask := response.Data
 	require.Equal(t, gotTask.ID, task.ID)
 	require.Equal(t, gotTask.CreatorID, task.CreatorID)
 	require.Equal(t, gotTask.Title, task.Title)
@@ -300,11 +304,15 @@ func requireBodyMatchTasks(t *testing.T, body *bytes.Buffer, tasks []store.GetTa
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 
-	var rsp getTasksResponse
-	err = json.Unmarshal(data, &rsp)
+	var response struct {
+		Data    getTasksResponse `json:"data"`
+		Success bool             `json:"success"`
+	}
+	err = json.Unmarshal(data, &response)
 	require.NoError(t, err)
-	gotTasks := rsp.Data
-	require.Equal(t, len(tasks), int(rsp.Total))
+
+	gotTasks := response.Data.Tasks
+	require.Equal(t, len(tasks), int(response.Data.Total))
 	require.Equal(t, len(tasks), len(gotTasks))
 
 	for i := range tasks {
