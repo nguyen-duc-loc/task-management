@@ -11,7 +11,7 @@ const StatusBadge = ({ className, completed, deadline }: BadgeProps) => {
 
   return (
     <div
-      className={`w-fit rounded-lg border px-3 py-1 text-center text-sm flex items-center gap-2 ${
+      className={`w-fit rounded-lg px-3 py-1 text-center text-sm flex items-center gap-2 ${
         completed
           ? "bg-green-600/15"
           : deadline < new Date()

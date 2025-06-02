@@ -28,5 +28,6 @@ type TaskModel = {
   created_at: string;
 };
 type Task = TaskModel;
-type CreateTaskResponseData = Task;
 type GetTaskByIdResponseData = Task;
+type CreateTaskResponseData = Task;
+type UpdateTaskResponseData = Task;

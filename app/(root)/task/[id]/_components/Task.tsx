@@ -7,13 +7,15 @@ import {
 } from "@tabler/icons-react";
 import { format } from "date-fns";
 import React from "react";
+import EditTaskBtn from "./EditBtn";
+import MarkAsDoneBtn from "./MarkAsDoneBtn";
 
 interface TaskProps {
   task: Task;
 }
 
 const Task = ({ task }: TaskProps) => {
-  const { created_at, title, description, deadline, completed } = task;
+  const { id, created_at, title, description, deadline, completed } = task;
 
   return (
     <>
@@ -37,12 +39,18 @@ const Task = ({ task }: TaskProps) => {
         <span className="col-span-3">{format(deadline, "PPP HH:mm")}</span>
         {description && (
           <div className="col-span-full bg-muted p-6 rounded-2xl">
-            <h3 className="text-lg font-semibold tracking-tight mb-2">
+            <h3 className="text-lg font-semibold tracking-tight mb-4">
               Task Description
             </h3>
-            <p className="text-muted-foreground text-sm">{description}</p>
+            <p className="text-muted-foreground text-sm whitespace-pre-line">
+              {description}
+            </p>
           </div>
         )}
+        <div className="mt-4 flex gap-4">
+          {!completed && <MarkAsDoneBtn id={id} />}
+          <EditTaskBtn id={id} />
+        </div>
       </div>
     </>
   );
