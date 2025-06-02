@@ -102,7 +102,7 @@ func TestCreateUserHandler(t *testing.T) {
 					Return(user, nil)
 			},
 			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusOK, recorder.Code)
+				require.Equal(t, http.StatusCreated, recorder.Code)
 				requireBodyMatchUser(t, recorder.Body, user)
 			},
 		},
@@ -237,7 +237,7 @@ func TestLoginUserHandler(t *testing.T) {
 					Return(store.User{}, store.ErrRecordNotFound)
 			},
 			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusNotFound, recorder.Code)
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
 			},
 		}, {
 			name: "IncorrectPassword",

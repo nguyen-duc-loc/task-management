@@ -62,7 +62,7 @@ func (s *Server) createUserHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, successResponse(newUserResponse(user)))
+	ctx.JSON(http.StatusCreated, successResponse(newUserResponse(user)))
 }
 
 type loginUserRequest struct {

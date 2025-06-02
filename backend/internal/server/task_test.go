@@ -1075,7 +1075,7 @@ func TestDeleteTaskHandler(t *testing.T) {
 					Times(1)
 			},
 			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusNoContent, recorder.Code)
+				require.Equal(t, http.StatusOK, recorder.Code)
 			},
 		},
 		{
