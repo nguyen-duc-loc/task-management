@@ -29,3 +29,4 @@ type TaskModel = {
 };
 type Task = TaskModel;
 type CreateTaskResponseData = Task;
+type GetTaskByIdResponseData = Task;

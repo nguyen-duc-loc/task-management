@@ -9,7 +9,7 @@ const Heading = ({ heading, Icon }: HeadingProps) => {
   return (
     <h1 className="mb-12 flex items-center gap-2 text-2xl font-bold">
       {Icon && <Icon className="size-7" />}
-      {heading}
+      <span className="line-clamp-2">{heading}</span>
     </h1>
   );
 };

@@ -11,10 +11,10 @@ export const metadata: Metadata = {
 
 const TaskPage = () => {
   return (
-    <div className="mx-auto max-w-[700px]">
+    <>
       <Heading heading="Create a new task" Icon={IconSquareRoundedPlusFilled} />
       <CreateTaskForm />
-    </div>
+    </>
   );
 };
 

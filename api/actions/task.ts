@@ -20,7 +20,6 @@ export const createTask = async (data: TaskData) => {
     }),
   });
   if (response.success) {
-    console.log(response);
     const task = response.data as CreateTaskResponseData;
     redirect(ROUTES.task(task.id));
   }
