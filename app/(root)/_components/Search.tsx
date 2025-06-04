@@ -53,7 +53,7 @@ const Search = () => {
         onChange={(e) => {
           setSearchQuery(e.target.value);
         }}
-        className="border-none shadow-none outline-none focus-visible:ring-0 focus-visible:ring-transparent focus-visible:ring-offset-0"
+        className="dark:bg-transparent border-none shadow-none outline-none focus-visible:ring-0 focus-visible:ring-transparent focus-visible:ring-offset-0"
       />
     </div>
   );
