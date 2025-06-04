@@ -31,3 +31,7 @@ type Task = TaskModel;
 type GetTaskByIdResponseData = Task;
 type CreateTaskResponseData = Task;
 type UpdateTaskResponseData = Task;
+type GetTasksResponseData = {
+  total: number;
+  tasks: Task[];
+};

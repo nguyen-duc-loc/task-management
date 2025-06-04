@@ -7,8 +7,6 @@ interface BadgeProps {
 }
 
 const StatusBadge = ({ className, completed, deadline }: BadgeProps) => {
-  console.log(deadline, new Date());
-
   return (
     <div
       className={`w-fit rounded-lg px-3 py-1 text-center text-sm flex items-center gap-2 ${

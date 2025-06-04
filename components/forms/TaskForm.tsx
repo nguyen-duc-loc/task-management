@@ -142,7 +142,7 @@ const TaskForm = ({ defaultValues, onSubmit, formType }: TaskFormProps) => {
                       disabled={isSubmitting}
                       variant={"outline"}
                       className={cn(
-                        "w-fit pl-3 text-left font-normal",
+                        "w-fit pl-3 text-left font-normal items-center-safe",
                         !field.value && "text-muted-foreground"
                       )}
                     >
