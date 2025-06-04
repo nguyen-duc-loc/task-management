@@ -2,8 +2,8 @@ import ROUTES from "@/constants/routes";
 import { IconStack2 } from "@tabler/icons-react";
 import Link from "next/link";
 import React from "react";
-import ModeToggle from "../_components/ModeToggle";
-import LogoutBtn from "../_components/LogoutBtn";
+import ModeToggle from "./_components/ModeToggle";
+import LogoutBtn from "./_components/LogoutBtn";
 
 const RootLayout = ({ children }: { children: React.ReactNode }) => {
   return (

@@ -1,7 +1,7 @@
 import Heading from "@/components/heading";
 import { IconLayoutDashboardFilled } from "@tabler/icons-react";
 import React from "react";
-import TaskContainer from "../_components/TaskContainer";
+import TaskContainer from "./_components/TaskContainer";
 
 const RootPage = ({
   searchParams,

@@ -21,7 +21,6 @@ import {
   IconCalendarWeek,
   IconDots,
   IconPencil,
-  IconTrash,
 } from "@tabler/icons-react";
 import { format } from "date-fns";
 import Link from "next/link";
