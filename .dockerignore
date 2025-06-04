@@ -1,0 +1,8 @@
+node_modules
+backend
+.next
+.vscode
+.env*
+README.md
+.dockerignore
+.git

@@ -15,7 +15,7 @@ services:
 
   backend:
     container_name: task-management-backend
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     ports:
@@ -26,15 +26,10 @@ services:
       - DB_HOST=postgres
     depends_on:
       - postgres
-    entrypoint: 
-      [
-        "/app/wait-for.sh",
-        "postgres:${DB_PORT}",
-        "--",
-        "/app/start.sh"
-      ]
+    entrypoint:
+      ["/backend/wait-for.sh", "postgres:${DB_PORT}", "--", "/backend/start.sh"]
     command: >
-      sh -c 'migrate -path /app/cmd/migration -database "postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}?sslmode=disable" -verbose up && /app/main'
+      sh -c 'migrate -path /backend/cmd/migration -database "postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}?sslmode=disable" -verbose up && /backend/main'
 
 volumes:
   db_volume:

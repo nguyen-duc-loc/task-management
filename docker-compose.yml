@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: task-management-db
+    env_file:
+      - backend/.env
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - db_volume:/var/lib/postgresql/data
+
+  backend:
+    container_name: task-management-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - backend/.env
+    environment:
+      - DB_HOST=postgres
+    depends_on:
+      - postgres
+    entrypoint:
+      ["/backend/wait-for.sh", "postgres:${DB_PORT}", "--", "/backend/start.sh"]
+    command: >
+      sh -c 'migrate -path /backend/cmd/migration -database "postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}?sslmode=disable" -verbose up && /backend/main'
+
+  frontend:
+    container_name: task-management-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - API_BASE_URL=http://backend:8080
+      - PORT=80
+    depends_on:
+      - backend
+    entrypoint:
+      ["/frontend/wait-for.sh", "backend:8080", "--", "/frontend/start.sh"]
+    command: >
+      node server.js
+
+volumes:
+  db_volume:

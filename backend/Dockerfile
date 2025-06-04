@@ -1,13 +1,13 @@
-FROM golang:1.24-alpine AS builder
-WORKDIR /app
+FROM golang:1.24-alpine AS backend_builder
+WORKDIR /backend
 COPY . .
 RUN go build -o main cmd/api/main.go
 
 FROM alpine:3.21
-WORKDIR /app
-COPY --from=builder /app/main .
-COPY start.sh .
-COPY wait-for.sh .
+WORKDIR /backend
+COPY --from=backend_builder /backend/main .
+COPY --from=backend_builder /backend/start.sh .
+COPY --from=backend_builder /backend/wait-for.sh .
 COPY cmd/migration ./cmd/migration
 
 EXPOSE 8080
