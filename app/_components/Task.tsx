@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import React from "react";
 import MarkAsDoneBtn from "./MarkAsDoneBtn";
+import DeleteBtn from "./DeleteBtn";
 
 interface TaskProps {
   task: Task;
@@ -63,15 +64,7 @@ const Task = ({ task }: TaskProps) => {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem
-                className="text-red-500 hover:text-red-500!"
-                asChild
-              >
-                <button className="w-full">
-                  <IconTrash className="text-red-500" />
-                  Delete
-                </button>
-              </DropdownMenuItem>
+              <DeleteBtn id={id} />
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -58,7 +58,19 @@ export const markTaskAsDone = async (id: string) => {
     }),
   });
   if (response.success) {
-    const task = response.data as UpdateTaskResponseData;
+    revalidateTag(TAGS.tasks);
+  }
+  return response;
+};
+
+export const deleteTask = async (id: string) => {
+  const response = await fetchHandler(`${API_BASE_URL}/tasks/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: await createAuthHeader(),
+    },
+  });
+  if (response.success) {
     revalidateTag(TAGS.tasks);
   }
   return response;

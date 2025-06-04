@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import React from "react";
 import EditTaskBtn from "./EditBtn";
 import MarkAsDoneBtn from "./MarkAsDoneBtn";
+import DeleteBtn from "./DeleteBtn";
 
 interface TaskProps {
   task: Task;
@@ -47,9 +48,12 @@ const Task = ({ task }: TaskProps) => {
             </p>
           </div>
         )}
-        <div className="mt-4 flex gap-4">
-          {!completed && <MarkAsDoneBtn id={id} />}
-          <EditTaskBtn id={id} />
+        <div className="col-span-full mt-4 flex justify-between">
+          <DeleteBtn id={id} />
+          <div className="flex gap-4">
+            {!completed && <MarkAsDoneBtn id={id} />}
+            <EditTaskBtn id={id} />
+          </div>
         </div>
       </div>
     </>
