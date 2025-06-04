@@ -45,3 +45,8 @@ export const signin = async (data: SigninData) => {
   }
   return response;
 };
+
+export const logout = async () => {
+  (await cookies()).delete(AUTH_TOKEN_KEY);
+  redirect(ROUTES.signin);
+};

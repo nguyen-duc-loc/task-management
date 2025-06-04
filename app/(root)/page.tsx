@@ -1,8 +1,7 @@
 import Heading from "@/components/heading";
 import { IconLayoutDashboardFilled } from "@tabler/icons-react";
-import React, { Suspense } from "react";
+import React from "react";
 import TaskContainer from "../_components/TaskContainer";
-import Spinner from "@/components/ui/spinner";
 
 const RootPage = ({
   searchParams,
@@ -19,15 +18,7 @@ const RootPage = ({
       <p className="text-muted-foreground mb-12">
         Welcome to the task management
       </p>
-      <Suspense
-        fallback={
-          <div>
-            <Spinner className="mx-auto text-primary" />
-          </div>
-        }
-      >
-        <TaskContainer searchParams={searchParams} />
-      </Suspense>
+      <TaskContainer searchParams={searchParams} />
     </div>
   );
 };
