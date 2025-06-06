@@ -27,14 +27,21 @@
   "[go]": {
     "editor.defaultFormatter": "golang.go"
   },
+  "[terraform]": {
+    "editor.defaultFormatter": "hashicorp.terraform"
+  },
   "go.formatTool": "default",
   "typescript.tsdk": "node_modules/typescript/lib",
   "files.exclude": {
     "**/.vscode": true,
+    "**/.terraform": true,
     "**/.next": true,
     "**/node_modules": true,
     "next-env.d.ts": true
   },
   "window.autoDetectColorScheme": false,
-  "workbench.editor.alwaysShowEditorActions": false
+  "workbench.editor.alwaysShowEditorActions": false,
+  "[dockerfile]": {
+    "editor.defaultFormatter": "ms-azuretools.vscode-containers"
+  }
 }

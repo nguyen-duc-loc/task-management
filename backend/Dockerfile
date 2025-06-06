@@ -15,3 +15,7 @@ EXPOSE 8080
 RUN apk add curl
 RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.3/migrate.linux-amd64.tar.gz | tar xvz
 RUN mv migrate /usr/bin/migrate
+
+ENTRYPOINT [ "/backend/start.sh" ]
+
+CMD [ "/backend/main" ]

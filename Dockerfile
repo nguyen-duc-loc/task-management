@@ -25,3 +25,7 @@ COPY --from=frontend_builder /frontend/start.sh .
 COPY --from=frontend_builder /frontend/wait-for.sh .
 
 EXPOSE 80
+
+ENTRYPOINT [ "/frontend/start.sh" ]
+
+CMD [ "node", "server.js" ]

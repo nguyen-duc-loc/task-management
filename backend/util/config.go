@@ -26,16 +26,37 @@ type JWTConfig struct {
 	AccessTokenDuration time.Duration
 }
 
+func LoadSeverEnv() string {
+	serverEnv := os.Getenv("SERVER_ENV")
+	if serverEnv != "prod" {
+		return "dev"
+	}
+
+	return serverEnv
+}
+
 func LoadDatabaseConfig() (databaseConfig DatabaseConfig, err error) {
-	database := os.Getenv("DB_DATABASE")
-	if len(database) == 0 {
-		err = errors.New("database is not specified")
+	serverEnv := LoadSeverEnv()
+
+	var password string
+	if serverEnv == "dev" {
+		password = os.Getenv("DB_PASSWORD")
+	} else {
+		var secrets Secrets
+		secrets, err = getSecrets()
+		if err != nil {
+			return
+		}
+		password = secrets.DBPassword
+	}
+	if len(password) == 0 {
+		err = errors.New("database password is not specified")
 		return
 	}
 
-	password := os.Getenv("DB_PASSWORD")
-	if len(password) == 0 {
-		err = errors.New("database password is not specified")
+	database := os.Getenv("DB_DATABASE")
+	if len(database) == 0 {
+		err = errors.New("database is not specified")
 		return
 	}
 
@@ -73,7 +94,22 @@ func LoadDatabaseConfig() (databaseConfig DatabaseConfig, err error) {
 }
 
 func LoadJWTConfig() (jwtConfig JWTConfig, err error) {
-	secretKey := os.Getenv("JWT_SECRET_KEY")
+	serverEnv := os.Getenv("SERVER_ENV")
+	if serverEnv != "prod" {
+		serverEnv = "dev"
+	}
+
+	var secretKey string
+	if serverEnv == "dev" {
+		secretKey = os.Getenv("JWT_SECRET_KEY")
+	} else {
+		var secrets Secrets
+		secrets, err = getSecrets()
+		if err != nil {
+			return
+		}
+		secretKey = secrets.JWTSecretKey
+	}
 	if len(secretKey) == 0 {
 		err = errors.New("JWT secret key is not specified")
 		return

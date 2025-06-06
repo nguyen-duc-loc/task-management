@@ -32,7 +32,11 @@ func NewConnPool() *pgxpool.Pool {
 	password = databaseConfig.Password
 	schema = databaseConfig.Schema
 
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?search_path=%s", username, password, host, port, database, schema)
+	serverEnv := util.LoadSeverEnv()
+	if serverEnv == "dev" {
+		connStr += "&sslmode=disable"
+	}
 	connPool, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
 		log.Fatal(err)
