@@ -1,3 +1,5 @@
+"use client";
+
 import StatusBadge from "@/components/StatusBadge";
 import {
   Card,
@@ -17,11 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import ROUTES from "@/constants/routes";
-import {
-  IconCalendarWeek,
-  IconDots,
-  IconPencil,
-} from "@tabler/icons-react";
+import { IconCalendarWeek, IconDots, IconPencil } from "@tabler/icons-react";
 import { format } from "date-fns";
 import Link from "next/link";
 import React from "react";
