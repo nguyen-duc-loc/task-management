@@ -64,9 +64,9 @@ jobs:
           cd backend
           make test
 
-  build_image:
+  build_backend_image:
     needs: test
-    name: Build image
+    name: Build backend image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
