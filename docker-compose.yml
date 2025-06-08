@@ -20,12 +20,15 @@ services:
       - "8080:8080"
     env_file:
       - backend/.env
-    environment:
-      - DB_HOST=postgres
     depends_on:
       - postgres
     entrypoint:
-      ["/backend/wait-for.sh", "postgres:${DB_PORT}", "--", "/backend/start.sh"]
+      [
+        "/backend/wait-for.sh",
+        "${DB_HOST}:${DB_PORT}",
+        "--",
+        "/backend/start.sh",
+      ]
     command: >
       sh -c 'migrate -path /backend/cmd/migration -database "postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}?sslmode=disable" -verbose up && /backend/main'
 
